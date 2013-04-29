@@ -188,7 +188,7 @@ class ArgumentGroup(object):
             arg.append_argument(argparse_root, argparse_current, '%s%s%s' % (base_name, colon, name), is_root=False)
 
 
-class pyCTD(object):
+class CTDopts(object):
     def __init__(self, name, version, **kwargs):
         self.name = name
         self.version = version
@@ -310,7 +310,7 @@ class pyCTD(object):
             final_args = self.read_ini(ctd_or_ini.load_ini) if ctd_or_ini.load_ini is not None else rest
 
             regular_parser = argparse.ArgumentParser()
-            # we populate an argparse parser with the attributes defined in the pyCTD object...
+            # we populate an argparse parser with the attributes defined in the CTDopts object...
             self.main_node.append_argument(regular_parser, regular_parser, '-', is_root=True)
             # ...and parse our INI/commandline arguments
             return regular_parser.parse_args(final_args)

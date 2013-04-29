@@ -1,9 +1,9 @@
-from pyCTD import pyCTD
+from CTDopts import CTDopts
 
-param_definitions = pyCTD(
+param_definitions = CTDopts(
     name='testTool',
     version='0.0.1',
-    description='This is a dummy test tool presenting pyCTD usage',
+    description='This is a dummy test tool presenting CTDopts usage',
     manual='manual',
     docurl='http://dummy.url/docurl.html',
     category='testing'
