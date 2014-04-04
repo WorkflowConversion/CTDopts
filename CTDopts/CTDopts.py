@@ -120,11 +120,14 @@ def _translate_ctd_to_param(attribs):
     if 'restrictions' in attribs:  # find out whether restrictions are choices ('this,that') or numeric range ('3:10')
         if ',' in attribs['restrictions']:
             attribs['choices'] = attribs['restrictions'].split(',')
-        else:
+        elif ':' in attribs['restrictions']:
             n_min, n_max = attribs['restrictions'].split(':')
             n_min = None if n_min == '' else n_min
             n_max = None if n_max == '' else n_max
             attribs['num_range'] = (n_min, n_max)
+        else:
+            raise ModelParsingError("Invalid restriction [%s]. \nMake sure that restrictions are either comma separated value lists or \ncolon separated values to indicate numeric ranges (e.g., 'true,false', '0:14', '1:', ':2.8')" % attribs['restrictions'])
+            
     # TODO: advanced. Should it be stored as a tag, or should we extend Parameter class to have that attribute?
     # what we can do is keep it as a tag in the model, and change Parameter._xml_node() so that if it finds
     # 'advanced' among its tag-list, make it output it as a separate attribute.
@@ -177,8 +180,20 @@ class ModelError(Exception):
     """Exception for errors related to CTDModel building
     """
     def __init__(self):
-        pass
-
+        super(ModelError, self).__init__()
+        
+class ModelParsingError(ModelError):
+    """Exception for errors related to CTD parsing
+    """
+    def __init__(self, message):
+        super(ModelParsingError, self).__init__()
+        self.message = message
+        
+    def __str__(self):
+        return "An error occurred while parsing the CTD file: %s" % self.message
+    
+    def __repr__(self):
+        return str(self)
 
 class UnsupportedTypeError(ModelError):
     """Exception for attempting to use unsupported types in the model
@@ -543,7 +558,12 @@ class CTDModel(object):
                 # assert params_container_node.attrib['name'] == self.name
                 # check params_container_node's first ITEM child's tool version information again? (OpenMS legacy?)
                 params = params_container_node.find('NODE')  # OpenMS legacy again, NODE with name="1" on top
-                self.parameters = self._build_param_model(params, base=None)
+                # check for the case when we have PARAMETERS/NODE/ITEM
+                if params is None:                    
+                    self.parameters = self._build_param_model(params_container_node, base=None)
+                else:
+                    # OpenMS legacy again, PARAMETERS/NODE/NODE/ITEM
+                    self.parameters = self._build_param_model(params, base=None)
 
     def _build_param_model(self, element, base):
         if element.tag == 'NODE':
