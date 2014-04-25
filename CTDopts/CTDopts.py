@@ -555,11 +555,14 @@ class CTDModel(object):
             if tool_element.tag == 'PARAMETERS':
                 # tool_element.attrib['version'] == '1.6.2'  # check whether the schema matches the one CTDOpts uses?
                 params_container_node = tool_element.find('NODE')
+                # we have to check the case in which the parent node contains 
+                # item/itemlist elements AND node element children
+                params_container_node_contains_items = params_container_node.find('ITEM') is not None or params_container_node.find('ITEMLIST')                 
                 # assert params_container_node.attrib['name'] == self.name
                 # check params_container_node's first ITEM child's tool version information again? (OpenMS legacy?)
                 params = params_container_node.find('NODE')  # OpenMS legacy again, NODE with name="1" on top
                 # check for the case when we have PARAMETERS/NODE/ITEM
-                if params is None:                    
+                if params is None or params_container_node_contains_items:                    
                     self.parameters = self._build_param_model(params_container_node, base=None)
                 else:
                     # OpenMS legacy again, PARAMETERS/NODE/NODE/ITEM
