@@ -305,6 +305,7 @@ class _Choices(_Restriction):
 
 
 class Parameter(object):
+
     def __init__(self, name, parent, **kwargs):
         """Required positional arguments: `name` string and `parent` ParameterGroup object
 
@@ -336,7 +337,9 @@ class Parameter(object):
         self.description = kwargs.get('description', None)
 
         default = kwargs.get('default', None)
-
+        
+        self._validate_numerical_defaults(default)
+                    
         # TODO 1_6_3: right now the CTD schema requires the 'value' attribute to be present for every parameter.
         # So every time we build a model from a CTD file, we find at least a default='' or default=[]
         # for every parameter. This should change soon, but for the time being, we have to get around this
@@ -375,6 +378,30 @@ class Parameter(object):
             self.restrictions = _Choices(map(self.type, kwargs['choices']))
         elif 'file_formats' in kwargs:
             self.restrictions = _FileFormat(kwargs['file_formats'])
+        
+    # perform some basic validation on the provided default values...
+    # an empty string IS NOT a float/int!        
+    def _validate_numerical_defaults(self, default):        
+        if default is not None:
+            if self.type is int or self.type is float: 
+                defaults_to_validate = []
+                errors_so_far = []
+                if self.is_list:
+                    # for lists, validate each provided element
+                    defaults_to_validate.extend(default)
+                else:
+                    defaults_to_validate.append(default)
+                for default_to_validate in defaults_to_validate:
+                    try:
+                        if self.type is int:
+                            int(default_to_validate)
+                        else:
+                            float(default_to_validate)
+                    except ValueError:
+                        errors_so_far.append(default_to_validate)
+                
+                if len(errors_so_far) > 0:
+                    raise ModelParsingError("Invalid default value(s) provided for parameter %(name)s: %(default)s" % {"name":self.name, "default":', '.join(map(str, errors_so_far))})
 
     def get_lineage(self, name_only=False):
         """Returns a list of zero or more ParameterGroup objects plus this Parameter object at the end,
