@@ -127,7 +127,7 @@ def _translate_ctd_to_param(attribs):
             attribs['num_range'] = (n_min, n_max)
         else:
             raise ModelParsingError("Invalid restriction [%s]. \nMake sure that restrictions are either comma separated value lists or \ncolon separated values to indicate numeric ranges (e.g., 'true,false', '0:14', '1:', ':2.8')" % attribs['restrictions'])
-            
+
     # TODO: advanced. Should it be stored as a tag, or should we extend Parameter class to have that attribute?
     # what we can do is keep it as a tag in the model, and change Parameter._xml_node() so that if it finds
     # 'advanced' among its tag-list, make it output it as a separate attribute.
@@ -334,6 +334,7 @@ class Parameter(object):
         self.required = CAST_BOOLEAN(kwargs.get('required', False))
         self.is_list = CAST_BOOLEAN(kwargs.get('is_list', False))
         self.description = kwargs.get('description', None)
+        self.advanced = CAST_BOOLEAN(kwargs.get('advanced', False))
 
         default = kwargs.get('default', None)
 
