@@ -402,7 +402,7 @@ class Parameter(object):
                         errors_so_far.append(default_to_validate)
                 
                 if len(errors_so_far) > 0:
-                    raise ModelParsingError("Invalid default value(s) provided for parameter %(name)s: %(default)s" % {"name":self.name, "default":', '.join(map(str, errors_so_far))})
+                    raise ModelParsingError("Invalid default value(s) provided for parameter '%(name)s': '%(default)s'" % {"name":self.name, "default":', '.join(map(str, errors_so_far))})
 
     def get_lineage(self, name_only=False):
         """Returns a list of zero or more ParameterGroup objects plus this Parameter object at the end,
