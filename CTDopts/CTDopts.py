@@ -181,7 +181,8 @@ class ModelError(Exception):
     """
     def __init__(self):
         super(ModelError, self).__init__()
-        
+
+
 class ModelParsingError(ModelError):
     """Exception for errors related to CTD parsing
     """
@@ -194,6 +195,7 @@ class ModelParsingError(ModelError):
     
     def __repr__(self):
         return str(self)
+
 
 class UnsupportedTypeError(ModelError):
     """Exception for attempting to use unsupported types in the model
@@ -338,7 +340,7 @@ class Parameter(object):
         self.advanced = CAST_BOOLEAN(kwargs.get('advanced', False))
 
         default = kwargs.get('default', None)
-        
+
         self._validate_numerical_defaults(default)
                     
         # TODO 1_6_3: right now the CTD schema requires the 'value' attribute to be present for every parameter.
@@ -374,15 +376,20 @@ class Parameter(object):
 
         self.restrictions = None
         if 'num_range' in kwargs:
-            self.restrictions = _NumericRange(self.type, *kwargs['num_range'])
+            try:
+                self.restrictions = _NumericRange(self.type, *kwargs['num_range'])
+            except ValueError:
+                num_range = kwargs['num_range']
+                raise ModelParsingError("Provided range [%s, %s] is not of type %s" %
+                                        (num_range[0], num_range[1], self.type))
         elif 'choices' in kwargs:
             self.restrictions = _Choices(map(self.type, kwargs['choices']))
         elif 'file_formats' in kwargs:
             self.restrictions = _FileFormat(kwargs['file_formats'])
-        
+
     # perform some basic validation on the provided default values...
     # an empty string IS NOT a float/int!        
-    def _validate_numerical_defaults(self, default):        
+    def _validate_numerical_defaults(self, default):
         if default is not None:
             if self.type is int or self.type is float: 
                 defaults_to_validate = []
@@ -400,9 +407,10 @@ class Parameter(object):
                             float(default_to_validate)
                     except ValueError:
                         errors_so_far.append(default_to_validate)
-                
+
                 if len(errors_so_far) > 0:
-                    raise ModelParsingError("Invalid default value(s) provided for parameter '%(name)s': '%(default)s'" % {"name":self.name, "default":', '.join(map(str, errors_so_far))})
+                    raise ModelParsingError("Invalid default value(s) provided for parameter '%(name)s': '%(default)s'"
+                                            % {"name": self.name, "default": ', '.join(map(str, errors_so_far))})
 
     def get_lineage(self, name_only=False):
         """Returns a list of zero or more ParameterGroup objects plus this Parameter object at the end,
