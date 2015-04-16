@@ -83,51 +83,51 @@ subsubparams.add(
     )
 
 # Now we have a CTDModel. To write the model to a CTD (xml) file:
-print 'Model being written to exampleTool.ctd...\n'
+print('Model being written to exampleTool.ctd...\n')
 model.write_ctd('exampleTool.ctd')
 
 # However, if we already have a CTD model for a tool, we can spare the pain of defining it like above, we can just
 # load it from a file directly. Like this:
-print 'Model loaded from exampleTool.ctd...\n'
+print('Model loaded from exampleTool.ctd...\n')
 model_2 = CTDModel(from_file='exampleTool.ctd')
 
 # We can list all the model's parameters. The below call will get a list of all Parameter objects registered in the model.
 # These objects store name, type, default, restriction, parent group etc. information we set above.
 params = model.list_parameters()
 
-print "For debugging purposes we can output a human readable representation of Parameter objects. Here's the first one:"
-print params[0]
-print
+print("For debugging purposes we can output a human readable representation of Parameter objects. Here's the first one:")
+print(params[0])
+print()
 
 # Let's print out the name attributes of these parameters.
-print 'The following parameters were registered in the model:'
-print [p.name for p in params]
-print
+print('The following parameters were registered in the model:')
+print([p.name for p in params])
+print()
 
 # In the above model, certain parameters were registered under parameter groups. We can access their 'lineage' and see
 # their nesting levels. Let's display nesting levels separated by colons:
-print 'The same parameters with subgroup information, if they were registered under parameter groups:'
-print [':'.join(p.get_lineage(name_only=True)) for p in params]
-print
+print('The same parameters with subgroup information, if they were registered under parameter groups:')
+print([':'.join(p.get_lineage(name_only=True)) for p in params])
+print()
 # (Parameter.get_lineage() returns a list of ParameterGroups down to the leaf Parameter. `name_only` setting returns
 # only the names of the objects, instead of the actual Parameter objects.
 
 # Some of the parameters had default values in the model. We can get those:
-print 'A dictionary of parameters with default values, returned by CTDModel.get_defaults():'
+print('A dictionary of parameters with default values, returned by CTDModel.get_defaults():')
 defaults = model_2.get_defaults()
 pretty_print(defaults)
-print
+print()
 
 print ('As you can see, parameter values are usually stored in nested dictionaries. If you want a flat dictionary, you can'
     'get that using CTDopts.flatten_dict(). Flat keys can be either tuples of tree node (subgroup) names down to the parameter...')
 flat_defaults = flatten_dict(defaults)
 pretty_print(flat_defaults)
-print
+print()
 
-print '...or they can be strings where nesing levels are separated by colons:'
+print('...or they can be strings where nesing levels are separated by colons:')
 flat_defaults_colon = flatten_dict(defaults, as_string=True)
 pretty_print(flat_defaults_colon)
-print
+print()
 
 print ('We can create dictionaries of arguments on our own that we want to validate against the model.'
 'CTDopts can read them from argument-storing CTD files or from the command line, but we can just define them in a '
@@ -138,37 +138,37 @@ new_values = {
 'subparams': {'param_1': '999.0'}
 }
 pretty_print(new_values)
-print
+print()
 
 print ("We can validate these arguments against the model, and get a dictionary with parameter types correctly casted "
 "and defaults set. Note that subparams:param_1 was casted from string to a floating point number because that's how it "
 "was defined in the model.")
 validated = model.validate_args(new_values)
 pretty_print(validated)
-print
+print()
 
 print ('We can write a CTD file containing these validated argument values. Just call CTDModel.write_ctd() with an extra '
     'parameter: the nested argument dictionary containing the actual values.')
 model.write_ctd('exampleTool_preset_params.ctd', validated)
-print
+print()
 
 print ('As mentioned earlier, CTDopts can load argument values from CTD files. Feel free to change some values in '
     "exampleTool_preset_params.ctd you've just written, and load it back.")
 args_from_ctd = args_from_file('exampleTool_preset_params.ctd')
 pretty_print(args_from_ctd)
-print
+print()
 print ("Notice that all the argument values are strings now. This is because we didn't validate them against the model, "
     "just loaded some stuff from a file into a dictionary. If you want to cast them, call CTDModel.validate_args():")
 validated_2 = model.validate_args(args_from_ctd)
 pretty_print(validated_2)
-print
+print()
 
 print ("Now certain parameters may have restrictions that we might want to validate for as well. Let's set the parameter "
     "positive_int to a negative value, and try to validate it with a strictness level enforce_restrictions=1. This "
     "will register a warning, but still accept the value.")
 validated_2['positive_int'] = -5
 _ = model.validate_args(validated_2, enforce_restrictions=1)
-print
+print()
 
 print ("Validation enforcement levels can be 0, 1 or 2 for type-casting, restriction-checking and required argument presence. "
     "They can be set with the keywords enforce_type, enforce_restrictions and enforce_required respectively. Let's increase "
@@ -177,9 +177,9 @@ try:
     model.validate_args(validated_2, enforce_restrictions=2)  # , enforce_type=0, enforce_required=0
 except ArgumentRestrictionError as ee:
     # other exceptions: ArgumentTypeError, ArgumentMissingError, all subclasses of Argumenterror
-    print ee
+    print(ee)
 
-print
+print()
 print ("One might want to combine arguments loaded from a CTD file with arguments coming from elsewhere, like the command line."
     "In that case, the method CTDopts.override_args(*arg_dicts) creates a combined argument dictionary where argument values "
     "are always taken from the rightmost (last) dictionary that has them. Let's override a few parameters:")
@@ -189,7 +189,7 @@ override = {
     }
 overridden = override_args(validated, override)
 pretty_print(overridden)
-print
+print()
 
 print ("So how to deal with command line arguments? If we have a model, we can look for its arguments. "
     "Call CTDModel.parse_cl_args() with either a string of the command line call or a list with the split words. "
@@ -197,7 +197,7 @@ print ("So how to deal with command line arguments? If we have a model, we can l
     "Grouped parameters are expected in --group:subgroup:param_x format.")
 cl_args = model.parse_cl_args('--positive_int 44 --subparams:param_2 5.0 5.5 6.0 --input_files a.fastq b.fastq')
 pretty_print(cl_args)
-print
+print()
 # # you can get unmatchable command line arguments with get_remaining=True like:
 # cl_args, unparsed = model.parse_cl_args('--positive_int 44 --subparams:param_2 5.0 5.5 6.0 --unrelated_stuff abc', get_remaining=True)
 
@@ -205,7 +205,7 @@ print ("Override other parameters with them, and validate it against the model:"
 overridden_with_cl = override_args(validated, cl_args)
 validated_3 = model.validate_args(overridden_with_cl)
 pretty_print(validated_3)
-print
+print()
 
 print ("One last thing: certain command line directives that are specific to CTD functionality can be parsed for, "
     "to help your script performing common tasks. These are CTD argument input, CTD model file writing and CTD argument "

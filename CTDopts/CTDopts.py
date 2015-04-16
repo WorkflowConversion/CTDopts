@@ -77,7 +77,7 @@ def flatten_dict(arg_dict, as_string=False):
     def flattener(subgroup, level):
         # recursive closure that accesses and modifies result dict and registers nested elements
         # as it encounters them
-        for key, value in subgroup.iteritems():
+        for key, value in subgroup.items():
             if isinstance(value, Mapping):  # collections.Mapping instead of dict for generality
                 flattener(value, level + [key])
             else:
@@ -85,7 +85,7 @@ def flatten_dict(arg_dict, as_string=False):
 
     flattener(arg_dict, [])
     if as_string:
-        return {':'.join(keylist): value for keylist, value in result.iteritems()}
+        return {':'.join(keylist): value for keylist, value in result.items()}
     else:
         return result
 
@@ -96,9 +96,9 @@ def override_args(*arg_dicts):
 
     combined_args = override_args(args_from_ctd, args_from_commandline)
     """
-    overridden_args = dict(chain(*(flatten_dict(d).iteritems() for d in arg_dicts)))
+    overridden_args = dict(chain(*(iter(flatten_dict(d).items()) for d in arg_dicts)))
     result = {}
-    for keylist, value in overridden_args.iteritems():
+    for keylist, value in overridden_args.items():
         set_nested_key(result, keylist, value)
     return result
 
@@ -189,10 +189,10 @@ class ModelParsingError(ModelError):
     def __init__(self, message):
         super(ModelParsingError, self).__init__()
         self.message = message
-        
+
     def __str__(self):
         return "An error occurred while parsing the CTD file: %s" % self.message
-    
+
     def __repr__(self):
         return str(self)
 
@@ -270,7 +270,7 @@ class _FileFormat(_Restriction):
     def __init__(self, formats):
         super(_FileFormat, self).__init__()
         if isinstance(formats, str):  # to handle ['txt', 'csv', 'tsv'] and '*.txt,*.csv,*.tsv'
-            formats = map(lambda x: x.replace('*.', ''), formats.split(','))
+            formats = [x.replace('*.', '') for x in formats.split(',')]
         self.formats = formats
 
     def ctd_restriction_string(self):
@@ -333,7 +333,7 @@ class Parameter(object):
 
         self.tags = kwargs.get('tags', [])
         if isinstance(self.tags, str):  # so that tags can be passed as ['tag1', 'tag2'] or 'tag1,tag2'
-            self.tags = filter(bool, self.tags.split(','))  # so an empty string doesn't produce ['']
+            self.tags = list(filter(bool, self.tags.split(',')))  # so an empty string doesn't produce ['']
         self.required = CAST_BOOLEAN(kwargs.get('required', False))
         self.is_list = CAST_BOOLEAN(kwargs.get('is_list', False))
         self.description = kwargs.get('description', None)
@@ -342,7 +342,7 @@ class Parameter(object):
         default = kwargs.get('default', None)
 
         self._validate_numerical_defaults(default)
-                    
+
         # TODO 1_6_3: right now the CTD schema requires the 'value' attribute to be present for every parameter.
         # So every time we build a model from a CTD file, we find at least a default='' or default=[]
         # for every parameter. This should change soon, but for the time being, we have to get around this
@@ -351,7 +351,7 @@ class Parameter(object):
             default = None
 
         # enforce that default is the correct type if exists. Elementwise for lists
-        self.default = None if default is None else map(self.type, default) if self.is_list else self.type(default)
+        self.default = None if default is None else list(map(self.type, default)) if self.is_list else self.type(default)
         # same for choices. I'm starting to think it's really unpythonic and we should trust input. TODO
 
         if self.type == bool:
@@ -383,15 +383,15 @@ class Parameter(object):
                 raise ModelParsingError("Provided range [%s, %s] is not of type %s" %
                                         (num_range[0], num_range[1], self.type))
         elif 'choices' in kwargs:
-            self.restrictions = _Choices(map(self.type, kwargs['choices']))
+            self.restrictions = _Choices(list(map(self.type, kwargs['choices'])))
         elif 'file_formats' in kwargs:
             self.restrictions = _FileFormat(kwargs['file_formats'])
 
     # perform some basic validation on the provided default values...
-    # an empty string IS NOT a float/int!        
+    # an empty string IS NOT a float/int!
     def _validate_numerical_defaults(self, default):
         if default is not None:
-            if self.type is int or self.type is float: 
+            if self.type is int or self.type is float:
                 defaults_to_validate = []
                 errors_so_far = []
                 if self.is_list:
@@ -518,7 +518,7 @@ class ParameterGroup(object):
 
     def _get_children(self):
         children = []
-        for child in self.parameters.itervalues():
+        for child in self.parameters.values():
             if isinstance(child, Parameter):
                 children.append(child)
             elif isinstance(child, ParameterGroup):
@@ -535,14 +535,14 @@ class ParameterGroup(object):
         # Of course this should never happen if the argument tree is built properly but it would be
         # nice to take care of it if a user happens to randomly define his arguments and groups.
         # So first we could sort self.parameters (Items first, Groups after them).
-        for arg in self.parameters.itervalues():
+        for arg in self.parameters.values():
             top.append(arg._xml_node(arg_dict))
         return top
 
     def __repr__(self):
         info = []
         info.append('PARAMETER GROUP %s (' % self.name)
-        for subparam in self.parameters.itervalues():
+        for subparam in self.parameters.values():
             info.append(subparam.__repr__())
         info.append(')')
         return '\n'.join(info)
@@ -591,14 +591,14 @@ class CTDModel(object):
             if tool_element.tag == 'PARAMETERS':
                 # tool_element.attrib['version'] == '1.6.2'  # check whether the schema matches the one CTDOpts uses?
                 params_container_node = tool_element.find('NODE')
-                # we have to check the case in which the parent node contains 
+                # we have to check the case in which the parent node contains
                 # item/itemlist elements AND node element children
-                params_container_node_contains_items = params_container_node.find('ITEM') is not None or params_container_node.find('ITEMLIST')                 
+                params_container_node_contains_items = params_container_node.find('ITEM') is not None or params_container_node.find('ITEMLIST')
                 # assert params_container_node.attrib['name'] == self.name
                 # check params_container_node's first ITEM child's tool version information again? (OpenMS legacy?)
                 params = params_container_node.find('NODE')  # OpenMS legacy again, NODE with name="1" on top
                 # check for the case when we have PARAMETERS/NODE/ITEM
-                if params is None or params_container_node_contains_items:                    
+                if params is None or params_container_node_contains_items:
                     self.parameters = self._build_param_model(params_container_node, base=None)
                 else:
                     # OpenMS legacy again, PARAMETERS/NODE/NODE/ITEM
@@ -678,7 +678,7 @@ class CTDModel(object):
                 # boolean values are the only ones that don't get casted correctly with, say, bool('false')
                 typecast = param.type if param.type is not bool else CAST_BOOLEAN
                 try:
-                    validated_value = map(typecast, arg) if param.is_list else typecast(arg)
+                    validated_value = list(map(typecast, arg)) if param.is_list else typecast(arg)
                 except ValueError:  # type casting failed
                     validated_value = arg  # just keep it as a string (or list of strings)
                     if enforce_type:  # but raise a warning or exception depending on enforcement level
@@ -741,7 +741,7 @@ class CTDModel(object):
         cl_arg_list = cl_args.split() if isinstance(cl_args, str) else cl_args
         parsed_args, rest = cl_parser.parse_known_args(cl_arg_list)
         res_args = {}  # OrderedDict()
-        for param_name, value in vars(parsed_args).iteritems():
+        for param_name, value in vars(parsed_args).items():
             if value is not None:  # None values are created by argparse if it didn't find the argument, we skip them
                 set_nested_key(res_args, param_name.split(':'), value)
         return res_args if not get_remaining else (res_args, rest)
