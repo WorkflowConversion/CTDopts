@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 # or for easier access of certain commonly used module methods
 import datetime
 import pprint

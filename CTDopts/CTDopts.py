@@ -9,11 +9,11 @@ import warnings
 
 
 class _InFile(str):
-    """Dummy class for input-file CTD type. I think most users would want to just get the file path
-    string but if it's required to open these files for reading or writing, one could do it in these
-    classes in a later release. Otherwise, it's equivalent to str with the information that we're
-    dealing with a file argument.
-    """
+    """ Dummy class for input-file CTD type. I think most users would want
+    to just get the file path string but if it's required to open these
+    files for reading or writing, one could do it in these classes in a later
+    release. Otherwise, it's equivalent to str with the information that we're
+    dealing with a file argument."""
     pass
 
 
@@ -333,7 +333,8 @@ class Parameter(object):
 
         self.tags = kwargs.get('tags', [])
         if isinstance(self.tags, str):  # so that tags can be passed as ['tag1', 'tag2'] or 'tag1,tag2'
-            self.tags = list(filter(bool, self.tags.split(',')))  # so an empty string doesn't produce ['']
+            # so an empty string doesn't produce ['']
+            self.tags = [item for item in self.tags.split(',') if item]
         self.required = CAST_BOOLEAN(kwargs.get('required', False))
         self.is_list = CAST_BOOLEAN(kwargs.get('is_list', False))
         self.description = kwargs.get('description', None)
