@@ -270,7 +270,7 @@ class _FileFormat(_Restriction):
     def __init__(self, formats):
         super(_FileFormat, self).__init__()
         if isinstance(formats, str):  # to handle ['txt', 'csv', 'tsv'] and '*.txt,*.csv,*.tsv'
-            formats = map(lambda x: x.replace('*.', ''), formats.split(','))
+            formats = map(lambda x: x.replace('*.', '').strip(), formats.split(','))
         self.formats = formats
 
     def ctd_restriction_string(self):
@@ -409,8 +409,11 @@ class Parameter(object):
                         errors_so_far.append(default_to_validate)
 
                 if len(errors_so_far) > 0:
-                    raise ModelParsingError("Invalid default value(s) provided for parameter '%(name)s': '%(default)s'"
-                                            % {"name": self.name, "default": ', '.join(map(str, errors_so_far))})
+                    raise ModelParsingError("Invalid default value(s) provided for parameter %(name)s of type %(type)s:"
+                                            " '%(default)s'"
+                                            % {"name": self.name,
+                                               "type": self.type,
+                                               "default": ', '.join(map(str, errors_so_far))})
 
     def get_lineage(self, name_only=False):
         """Returns a list of zero or more ParameterGroup objects plus this Parameter object at the end,
