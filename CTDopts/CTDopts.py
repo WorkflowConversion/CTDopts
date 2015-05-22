@@ -126,7 +126,14 @@ def _translate_ctd_to_param(attribs):
             n_max = None if n_max == '' else n_max
             attribs['num_range'] = (n_min, n_max)
         else:
-            raise ModelParsingError("Invalid restriction [%s]. \nMake sure that restrictions are either comma separated value lists or \ncolon separated values to indicate numeric ranges (e.g., 'true,false', '0:14', '1:', ':2.8')" % attribs['restrictions'])
+            # there is nothing we can split with... so we will assume that this is a restriction of one possible
+            # value... anyway, the user should be warned about it
+            warnings.warn("Restriction [%s] of a single value found for parameter [%s]. \n"
+                          "Restrictions should be comma separated value lists or colon separated values to "
+                          "indicate numeric ranges (e.g., 'true,false', '0:14', '1:', ':2.8')\n"
+                          "Will use a restriction with one possible value of choice." %
+                          (attribs['restrictions'], attribs['name']))
+            attribs['choices'] = [attribs['restrictions']]
 
     # TODO: advanced. Should it be stored as a tag, or should we extend Parameter class to have that attribute?
     # what we can do is keep it as a tag in the model, and change Parameter._xml_node() so that if it finds
