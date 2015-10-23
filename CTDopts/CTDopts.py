@@ -8,6 +8,25 @@ import warnings
 # dummy classes for input-file and output-file CTD types.
 
 
+class _ASingleton(type):
+    """
+    A metaclass for singletons
+    """
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(_ASingleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+
+class _Null(object):
+    """
+    A null singleton for non-initialized fields to distinguish between initialized=None and non-initialized members
+    """
+    __metaclass__ = _ASingleton
+
+
 class _InFile(str):
     """Dummy class for input-file CTD type. I think most users would want to just get the file path
     string but if it's required to open these files for reading or writing, one could do it in these
@@ -346,7 +365,7 @@ class Parameter(object):
         self.description = kwargs.get('description', None)
         self.advanced = CAST_BOOLEAN(kwargs.get('advanced', False))
 
-        default = kwargs.get('default', None)
+        default = kwargs.get('default', _Null)
 
         self._validate_numerical_defaults(default)
                     
@@ -355,10 +374,18 @@ class Parameter(object):
         # for every parameter. This should change soon, but for the time being, we have to get around this
         # and disregard such default attributes. The below two lines will be deleted after fixing 1_6_3.
         if default == '' or (self.is_list and default == []):
-            default = None
+            default = _Null
 
         # enforce that default is the correct type if exists. Elementwise for lists
-        self.default = None if default is None else map(self.type, default) if self.is_list else self.type(default)
+        if default is _Null:
+            self.default = _Null
+        elif default is None:
+            self.default = None
+        else:
+            if self.is_list:
+                self.default = map(self.type, default)
+            else:
+                self.default = self.type(default)
         # same for choices. I'm starting to think it's really unpythonic and we should trust input. TODO
 
         if self.type == bool:
@@ -663,7 +690,7 @@ class CTDModel(object):
     def get_defaults(self):
         """Returns a nested dictionary with all parameters of the model having default values.
         """
-        params_w_default = (p for p in self.list_parameters() if p.default is not None)
+        params_w_default = (p for p in self.list_parameters() if p.default is not _Null)
         defaults = {}
         for param in params_w_default:
             set_nested_key(defaults, param.get_lineage(name_only=True), param.default)
@@ -753,13 +780,19 @@ class CTDModel(object):
                 # or '+' rather? Should we allow empty lists here? If default is a proper list with elements
                 # that we want to clear, this would be the only way to do it so I'm inclined to use '*'
                 cl_arg_kws['nargs'] = '*'
-            cl_parser.add_argument(short_prefix+short_name, prefix + ':'.join(lineage), **cl_arg_kws)  # hardcoded 'group:subgroup:param1'
+
+            if param.default is not _Null():
+                cl_arg_kws['default'] = param.default
+
+            cl_parser.add_argument(prefix + ':'.join(lineage), **cl_arg_kws)  # hardcoded 'group:subgroup:param1'
 
         cl_arg_list = cl_args.split() if isinstance(cl_args, str) else cl_args
         parsed_args, rest = cl_parser.parse_known_args(cl_arg_list)
         res_args = {}  # OrderedDict()
         for param_name, value in vars(parsed_args).iteritems():
-            if value is not None:  # None values are created by argparse if it didn't find the argument, we skip them
+            # None values are created by argparse if it didn't find the argument or default=None, we skip params
+            # that dont have a default value
+            if value is not None or value == self.parameters.parameters[param_name].default:
                 set_nested_key(res_args, param_name.split(':'), value)
         return res_args if not get_remaining else (res_args, rest)
 
