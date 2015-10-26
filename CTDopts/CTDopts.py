@@ -718,7 +718,7 @@ class CTDModel(object):
                     set_nested_key(validated_args, lineage, param.default)
         return validated_args
 
-    def parse_cl_args(self, cl_args=None, prefix='--', get_remaining=False):
+    def parse_cl_args(self, cl_args=None, prefix='--', short_prefix="-", get_remaining=False):
         """Parses command line arguments `cl_args` (either a string or a list like sys.argv[1:])
         assuming that parameter names are prefixed by `prefix` (default '--').
 
@@ -730,8 +730,16 @@ class CTDModel(object):
         argument dictionary, the second a list of unmatchable command line options.
         """
         cl_parser = argparse.ArgumentParser()
+        short_names = set()
         for param in self.list_parameters():
             lineage = param.get_lineage(name_only=True)
+            short_name = "".join(map(lambda x: x[0], lineage))
+            c = 2
+            while short_name in short_names:
+                short_name = "".join(map(lambda x: x[:c], lineage))
+                c += 1
+            short_names.add(short_name)
+
             cl_arg_kws = {}  # argument processing info passed to argparse in keyword arguments, we build them here
             if param.type is bool:  # boolean flags are not followed by a value, only their presence is required
                 cl_arg_kws['action'] = 'store_true'
@@ -745,8 +753,7 @@ class CTDModel(object):
                 # or '+' rather? Should we allow empty lists here? If default is a proper list with elements
                 # that we want to clear, this would be the only way to do it so I'm inclined to use '*'
                 cl_arg_kws['nargs'] = '*'
-
-            cl_parser.add_argument(prefix + ':'.join(lineage), **cl_arg_kws)  # hardcoded 'group:subgroup:param1'
+            cl_parser.add_argument(short_prefix+short_name, prefix + ':'.join(lineage), **cl_arg_kws)  # hardcoded 'group:subgroup:param1'
 
         cl_arg_list = cl_args.split() if isinstance(cl_args, str) else cl_args
         parsed_args, rest = cl_parser.parse_known_args(cl_arg_list)
