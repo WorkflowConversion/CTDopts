@@ -348,9 +348,11 @@ class Parameter(object):
             `num_range`: (min, max) tuple. None in either position makes it unlimited
             `choices`: list of allowed values (controlled vocabulary)
             `file_formats`: list of allowed file extensions
+            `short_name`: string for short name annotation
         """
         self.name = name
         self.parent = parent
+        self.short_name = kwargs.get('short_name', _Null)
 
         try:
             self.type = CTDTYPE_TO_TYPE[kwargs.get('type', str)]
@@ -449,7 +451,7 @@ class Parameter(object):
                                                "type": self.type,
                                                "default": ', '.join(map(str, errors_so_far))})
 
-    def get_lineage(self, name_only=False):
+    def get_lineage(self, name_only=False, short_name=False):
         """Returns a list of zero or more ParameterGroup objects plus this Parameter object at the end,
         ie. the nesting lineage of the Parameter object. With `name_only` setting on, it only returns
         the names of said objects. For top level parameters, it's a list with a single element.
@@ -457,7 +459,7 @@ class Parameter(object):
         lineage = []
         i = self
         while i.parent is not None:
-            lineage.append(i.name if name_only else i)
+            lineage.append(i.short_name if short_name else i.name if name_only else i)
             i = i.parent
         lineage.reverse()
         return lineage
@@ -540,7 +542,7 @@ class ParameterGroup(object):
             `tags`: list of strings or comma separated string (default [])
             `num_range`: (min, max) tuple. None in either position makes it unlimited
             `choices`: list of allowed values (controlled vocabulary)
-            `file_formats`: list of allowed file extensions
+            `short_name`: string for short name annotation
         """
         # TODO assertion if name already exists? It just overrides now, but I'm not sure if allowing this behavior is OK
         self.parameters[name] = Parameter(name, self, **kwargs)
@@ -673,6 +675,7 @@ class CTDModel(object):
             `num_range`: (min, max) tuple. None in either position makes it unlimited
             `choices`: list of allowed values (controlled vocabulary)
             `file_formats`: list of allowed file extensions
+            `short_name`: string for short name annotation
         """
         return self.parameters.add(name, **kwargs)
 
@@ -757,16 +760,9 @@ class CTDModel(object):
         argument dictionary, the second a list of unmatchable command line options.
         """
         cl_parser = argparse.ArgumentParser()
-        short_names = set()
         for param in self.list_parameters():
             lineage = param.get_lineage(name_only=True)
-            short_name = "".join(map(lambda x: x[0], lineage))
-            c = 2
-            while short_name in short_names:
-                short_name = "".join(map(lambda x: x[:c], lineage))
-                c += 1
-            short_names.add(short_name)
-
+            short_lineage = param.get_lineage(name_only=True, short_name=True)
             cl_arg_kws = {}  # argument processing info passed to argparse in keyword arguments, we build them here
             if param.type is bool:  # boolean flags are not followed by a value, only their presence is required
                 cl_arg_kws['action'] = 'store_true'
@@ -784,9 +780,17 @@ class CTDModel(object):
             if param.default is not _Null():
                 cl_arg_kws['default'] = param.default
 
-            cl_parser.add_argument(prefix + ':'.join(lineage), **cl_arg_kws)  # hardcoded 'group:subgroup:param1'
+            if param.required:
+                cl_arg_kws['required'] = True
+
+            # hardcoded 'group:subgroup:param1'
+            cl_parser.add_argument(short_prefix+':'.join(short_lineage), prefix + ':'.join(lineage), **cl_arg_kws)
+
 
         cl_arg_list = cl_args.split() if isinstance(cl_args, str) else cl_args
+        #if no arguments are given print help
+        if not cl_arg_list:
+            cl_arg_list.append("-h")
         parsed_args, rest = cl_parser.parse_known_args(cl_arg_list)
         res_args = {}  # OrderedDict()
         for param_name, value in vars(parsed_args).iteritems():
