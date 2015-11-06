@@ -784,7 +784,11 @@ class CTDModel(object):
                 cl_arg_kws['required'] = True
 
             # hardcoded 'group:subgroup:param1'
-            cl_parser.add_argument(short_prefix+':'.join(short_lineage), prefix + ':'.join(lineage), **cl_arg_kws)
+            print short_lineage
+            if all(a is not _Null for a in short_lineage):
+                cl_parser.add_argument(short_prefix+':'.join(short_lineage), prefix + ':'.join(lineage), **cl_arg_kws)
+            else:
+                cl_parser.add_argument(prefix + ':'.join(lineage), **cl_arg_kws)
 
 
         cl_arg_list = cl_args.split() if isinstance(cl_args, str) else cl_args
