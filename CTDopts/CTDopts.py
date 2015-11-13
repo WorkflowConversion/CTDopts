@@ -496,7 +496,7 @@ class Parameter(object):
         if not self.is_list:  # we'll deal with list parameters later, now only normal:
             # TODO: once Param_1_6_3.xsd gets fixed, we won't have to set an empty value='' attrib.
             # but right now value is a required attribute.
-            attribs['value'] = '' if value is None else str(value)
+            attribs['value'] = '' if value is _Null else str(value)
             if self.type is bool:  # for booleans str(True) returns 'True' but the XS standard is lowercase
                 attribs['value'] = 'true' if value else 'false'
         attribs['type'] = TYPE_TO_CTDTYPE[self.type]
