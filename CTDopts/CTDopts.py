@@ -521,6 +521,12 @@ class Parameter(object):
         else:
             return Element('ITEM', attribs)
 
+    def _cli_node(self, parent_name, prefix='--'):
+        lineage = self.get_lineage(name_only=True)
+        top_node = Element('clielement', {"optionIdentifier": prefix+':'.join(lineage)})
+        SubElement(top_node, 'mapping', {"referenceName": parent_name+"."+self.name})
+        return top_node
+
 
 class ParameterGroup(object):
     def __init__(self, name, parent, description=None):
@@ -577,6 +583,15 @@ class ParameterGroup(object):
         for arg in self.parameters.itervalues():
             top.append(arg._xml_node(arg_dict))
         return top
+
+    def _cli_node(self, parent_name="", prefix='--'):
+        """
+        Generates a list of clielements of that group
+        :param arg_dict: dafualt values for elements
+        :return: list of clielements
+        """
+        for arg in self.parameters.itervalues():
+            yield arg._cli_node(parent_name=parent_name+"."+self.name, prefix=prefix)
 
     def __repr__(self):
         info = []
@@ -803,7 +818,7 @@ class CTDModel(object):
                 set_nested_key(res_args, param_name.split(':'), value)
         return res_args if not get_remaining else (res_args, rest)
 
-    def generate_ctd_tree(self, arg_dict=None, log=None):
+    def generate_ctd_tree(self, arg_dict=None, log=None, cli=False, prefix='--'):
         """Generates an XML ElementTree from the model and returns the top <tool> Element object,
         that can be output to a file (CTDModel.write_ctd() does everything needed if the user
         doesn't need access to the actual element-tree).
@@ -817,6 +832,7 @@ class CTDModel(object):
             'output': standard output or whatever output the user intends to log
             'warning': warning logs
             'error': standard error or whatever error log the user wants to store
+        `cli`: boolean whether or not cli elements should be generated (needed for GenericKNIMENode for example)
         """
         tool_attribs = OrderedDict()
         tool_attribs['version'] = self.version
@@ -877,13 +893,18 @@ class CTDModel(object):
         args_top_node = self.parameters._xml_node(arg_dict)
         top_node.append(args_top_node)
 
+        if cli:
+            cli_node = SubElement(tool, "cli")
+            for e in self.parameters._cli_node(parent_name=self.name, prefix=prefix):
+                cli_node.append(e)
+
         # # LXML w/ pretty print syntax
         # return tostring(tool, pretty_print=True, xml_declaration=True, encoding="UTF-8")
 
         # xml.etree syntax (no pretty print available, so we use xml.dom.minidom stuff)
         return tool
 
-    def write_ctd(self, out_file, arg_dict=None, log=None):
+    def write_ctd(self, out_file, arg_dict=None, log=None, cli=False):
         """Generates a CTD XML from the model and writes it to `out_file`, which is either a string
         to a file path or a stream with a write() method.
 
@@ -897,8 +918,9 @@ class CTDModel(object):
             'output': standard output or whatever output the user intends to log
             'warning': warning logs
             'error': standard error or whatever error log the user wants to store
+        `cli`: boolean whether or not cli elements should be generated (needed for GenericKNIMENode for example)
         """
-        xml_content = parseString(tostring(self.generate_ctd_tree(arg_dict, log), encoding="UTF-8")).toprettyxml()
+        xml_content = parseString(tostring(self.generate_ctd_tree(arg_dict, log, cli), encoding="UTF-8")).toprettyxml()
 
         if isinstance(out_file, str):  # if out_file is a string, we create and write the file
             with open(out_file, 'w') as f:
