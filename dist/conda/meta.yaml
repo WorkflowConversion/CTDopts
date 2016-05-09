@@ -16,7 +16,6 @@ requirements:
 
   run:
     - python
-    - lxml
 
 test:
   imports: 
