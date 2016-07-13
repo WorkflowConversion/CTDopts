@@ -44,7 +44,7 @@ class _OutFile(str):
 # module globals for some common operations (python types to CTD-types back and forth)
 TYPE_TO_CTDTYPE = {int: 'int', float: 'float', str: 'string', bool: 'boolean',
                    _InFile: 'input-file', _OutFile: 'output-file'}
-CTDTYPE_TO_TYPE = {'int': int, 'float': float, 'double': float, 'string': str, 'boolean': bool,
+CTDTYPE_TO_TYPE = {'int': int, 'float': float, 'double': float, 'string': str, 'boolean': bool, 'bool': bool,
                    'input-file': _InFile, 'output-file': _OutFile, int: int, float: float, str: str,
                    bool: bool, _InFile: _InFile, _OutFile: _OutFile}
 PARAM_DEFAULTS = {'advanced': False, 'required': False, 'restrictions': None, 'description': None,
@@ -393,7 +393,6 @@ class Parameter(object):
         if self.type == bool:
             assert self.is_list is False, "Boolean flag can't be a list type"
             self.required = False  # override whatever we found. Boolean flags can't be required...
-            self.default = False  # ...as they have a False default.
 
         # Default value should exist IFF argument is not required.
         # TODO: if we can have optional list arguments they don't have to have a default? (empty list)
@@ -602,6 +601,22 @@ class ParameterGroup(object):
         return '\n'.join(info)
 
 
+class Mapping(object):
+    def __init__(self, reference_name=None):
+        self.reference_name = reference_name
+
+
+class CLIElement(object):
+    def __init__(self, option_identifier=None, mappings=[]):
+        self.option_identifier = option_identifier
+        self.mappings = mappings
+
+
+class CLI(object):
+    def __init__(self, cli_elements=[]):
+        self.cli_elements = cli_elements
+
+
 class CTDModel(object):
     def __init__(self, name=None, version=None, from_file=None, **kwargs):
         """The parameter model of a tool.
@@ -621,6 +636,7 @@ class CTDModel(object):
             # TODO: check whether optional attributes in kwargs are all allowed or just ignore the rest?
             self.opt_attribs = kwargs  # description, manual, docurl, category (+executable stuff).
             self.parameters = ParameterGroup('1', None, 'Parameters of %s' % self.name)  # openMS legacy, top group named "1"
+            self.cli = []
 
     def _load_from_file(self, filename):
         """Builds a CTDModel from a CTD XML file.
@@ -629,6 +645,7 @@ class CTDModel(object):
         assert root.tag == 'tool', "Invalid CTD file, root is not <tool>"  # TODO: own exception
 
         self.opt_attribs = {}
+        self.cli = []
 
         for tool_required_attrib in ['name', 'version']:
             assert tool_required_attrib in root.attrib, "CTD tool is missing a %s attribute" % tool_required_attrib
@@ -642,6 +659,10 @@ class CTDModel(object):
             if tool_element.tag in ['manual', 'description', 'executableName', 'executablePath']:
                                     # ignoring: cli, logs, relocators. cli and relocators might be useful later.
                 self.opt_attribs[tool_element.tag] = tool_element.text
+
+            if tool_element.tag == 'cli':
+                self._build_cli(tool_element.findall('clielement'))
+
             if tool_element.tag == 'PARAMETERS':
                 # tool_element.attrib['version'] == '1.6.2'  # check whether the schema matches the one CTDOpts uses?
                 params_container_node = tool_element.find('NODE')
@@ -657,6 +678,13 @@ class CTDModel(object):
                 else:
                     # OpenMS legacy again, PARAMETERS/NODE/NODE/ITEM
                     self.parameters = self._build_param_model(params, base=None)
+
+    def _build_cli(self, xml_cli_elements):
+        for xml_cli_element in xml_cli_elements:
+            mappings = []
+            for xml_mapping in xml_cli_element.findall('mapping'):
+                mappings.append(Mapping(xml_mapping.attrib['referenceName'] if 'referenceName' in xml_mapping.attrib else None))
+            self.cli.append(CLIElement(xml_cli_element.attrib['optionIdentifier'] if 'optionIdentifier' in xml_cli_element.attrib else None, mappings))
 
     def _build_param_model(self, element, base):
         if element.tag == 'NODE':
