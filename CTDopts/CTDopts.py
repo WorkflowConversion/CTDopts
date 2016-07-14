@@ -393,6 +393,7 @@ class Parameter(object):
         if self.type == bool:
             assert self.is_list is False, "Boolean flag can't be a list type"
             self.required = False  # override whatever we found. Boolean flags can't be required...
+            self.default = CAST_BOOLEAN(default)
 
         # Default value should exist IFF argument is not required.
         # TODO: if we can have optional list arguments they don't have to have a default? (empty list)
