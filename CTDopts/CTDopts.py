@@ -426,8 +426,8 @@ class Parameter(object):
     # perform some basic validation on the provided default values...
     # an empty string IS NOT a float/int!        
     def _validate_numerical_defaults(self, default):
-        if default is not None:
-            if self.type is int or self.type is float: 
+        if default is not None and default is not _Null:
+            if self.type is int or self.type is float:
                 defaults_to_validate = []
                 errors_so_far = []
                 if self.is_list:
@@ -459,7 +459,8 @@ class Parameter(object):
         lineage = []
         i = self
         while i.parent is not None:
-            lineage.append(i.short_name if short_name else i.name if name_only else i)
+            # Exclude ParameterGroup here, since they do not have a short_name attribute (lzimmermann)
+            lineage.append(i.short_name if short_name and not isinstance(i, ParameterGroup) else i.name if name_only else i)
             i = i.parent
         lineage.reverse()
         return lineage
@@ -514,7 +515,9 @@ class Parameter(object):
 
         if self.is_list:  # and now list parameters
             top = Element('ITEMLIST', attribs)
-            if value is not None:
+            
+            # (lzimmermann) I guess _Null has to be exluded here, too
+            if value is not None and value is not _Null:
                 for d in value:
                     SubElement(top, 'LISTITEM', {'value': str(d)})
             return top
