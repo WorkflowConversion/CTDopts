@@ -1,4 +1,4 @@
-#CTDopts
+# CTDopts
 `CTDopts` is a module for enabling tools with CTD reading/writing, argument parsing, validating and manipulating capabilities.
 
 Please check out [example.py](example.py) for an overview of CTDopt's features.
@@ -16,5 +16,7 @@ In order to upload `CTDopts` to the Anaconda Cloud for distribution, you should 
 1. Make sure you've installed the `anaconda-client` and `conda-build` packages using `conda`. This needs to be done once per development environment.
 1. Update the [meta.yaml file](dist/conda/meta.yaml), in particular the `package.version` and `source.git_rev` properties.
 1. Change to the [dist/conda] folder and execute the following command:
+
     $ conda build .
+    
 1. You will be asked for credentials to finalize the upload.
