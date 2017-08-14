@@ -17,7 +17,7 @@ In order to upload `CTDopts` to the Anaconda Cloud for distribution, you should 
 
 1. Make sure you've installed the `anaconda-client` and `conda-build` packages using `conda`. This needs to be done once per development environment.
 1. Update the [meta.yaml file](dist/conda/meta.yaml), in particular the `package.version` and `source.git_rev` properties.
-1. Change to the [dist/conda] folder and execute the following command (you will be asked for credentials to finalize the upload after the build):
+1. Change your working directory to `dist/conda` and execute the following command (you will be asked for credentials to finalize the upload after the build):
 
 ```sh
 $ conda build .
