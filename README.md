@@ -18,8 +18,8 @@ In order to upload `CTDopts` to the Anaconda Cloud for distribution, you should 
 1. Make sure you've installed the `anaconda-client` and `conda-build` packages using `conda`. This needs to be done once per development environment.
 1. Commit your changes to the code locally.
 1. Bump up the version. This is a two-fold process:
-  1. Update the [meta.yaml file](dist/conda/meta.yaml), in particular the `package.version` and `source.git_rev` properties. Commit your changes locally.
-  1. Tag the state of the repository using `git tag vX.Y`.
+    1. Update the [meta.yaml file](dist/conda/meta.yaml), in particular the `package.version` and `source.git_rev` properties. Commit your changes locally.
+    1. Tag the state of the repository using `git tag vX.Y`.
 1. Push all changes to `CTDopts` repository. Remember to tell git to also *push* the newly created tag (i.e., by invoking `git push origin --tags`).
 1. Change your working directory to `dist/conda` and execute the following command (you will be asked for credentials to finalize the upload after the build):
 
