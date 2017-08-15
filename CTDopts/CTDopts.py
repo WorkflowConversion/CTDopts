@@ -701,11 +701,13 @@ class CTDModel(object):
             return current_group
         elif element.tag == 'ITEM':
             setup = _translate_ctd_to_param(dict(element.attrib))
+            validate_dictionary_contains_keys(setup, ['name'], 'ITEM')
             base.add(**setup)  # register parameter in model
         elif element.tag == 'ITEMLIST':
             setup = _translate_ctd_to_param(dict(element.attrib))
             setup['default'] = [listitem.attrib['value'] for listitem in element]
             setup['is_list'] = True
+            validate_dictionary_contains_keys(setup, ['name'], 'ITEMLIST')
             base.add(**setup)  # register list parameter in model
 
     def add(self, name, **kwargs):
@@ -1028,3 +1030,11 @@ def parse_cl_directives(cl_args, write_tool_ctd='write_tool_ctd', write_param_ct
     parsed_directives['input_ctd'] = directives[input_ctd]
 
     return parsed_directives
+
+
+# TODO: ElementTree does not provide line information... maybe refactor using lxml or other parser that does support it?
+def validate_dictionary_contains_keys(dictionary, keys, element_tag):
+    for key in keys:
+        assert key in dictionary, "Missing required attribute '%s' in %s element. Present attributes: %s" % \
+                                  (key, element_tag,
+                                   ', '.join(['{0}="{1}"'.format(k, v) for k, v in dictionary.iteritems()]))
