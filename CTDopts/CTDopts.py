@@ -692,6 +692,7 @@ class CTDModel(object):
 
     def _build_param_model(self, element, base):
         if element.tag == 'NODE':
+            validate_contains_keys(element.attrib, ['name'], 'NODE')
             if base is None:  # top level group (<NODE name="1">) has to be created on its own
                 current_group = ParameterGroup(element.attrib['name'], base, element.attrib.get('description', ''))
             else:  # other groups can be registered as a subgroup, as they'll always have parent base nodes
@@ -701,13 +702,13 @@ class CTDModel(object):
             return current_group
         elif element.tag == 'ITEM':
             setup = _translate_ctd_to_param(dict(element.attrib))
-            validate_dictionary_contains_keys(setup, ['name'], 'ITEM')
+            validate_contains_keys(setup, ['name'], 'ITEM')
             base.add(**setup)  # register parameter in model
         elif element.tag == 'ITEMLIST':
             setup = _translate_ctd_to_param(dict(element.attrib))
             setup['default'] = [listitem.attrib['value'] for listitem in element]
             setup['is_list'] = True
-            validate_dictionary_contains_keys(setup, ['name'], 'ITEMLIST')
+            validate_contains_keys(setup, ['name'], 'ITEMLIST')
             base.add(**setup)  # register list parameter in model
 
     def add(self, name, **kwargs):
@@ -1033,7 +1034,7 @@ def parse_cl_directives(cl_args, write_tool_ctd='write_tool_ctd', write_param_ct
 
 
 # TODO: ElementTree does not provide line information... maybe refactor using lxml or other parser that does support it?
-def validate_dictionary_contains_keys(dictionary, keys, element_tag):
+def validate_contains_keys(dictionary, keys, element_tag):
     for key in keys:
         assert key in dictionary, "Missing required attribute '%s' in %s element. Present attributes: %s" % \
                                   (key, element_tag,
