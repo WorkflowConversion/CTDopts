@@ -48,9 +48,11 @@ CTDTYPE_TO_TYPE = {'int': int, 'float': float, 'double': float, 'string': str, '
                    'input-file': _InFile, 'output-file': _OutFile, int: int, float: float, str: str,
                    bool: bool, _InFile: _InFile, _OutFile: _OutFile}
 PARAM_DEFAULTS = {'advanced': False, 'required': False, 'restrictions': None, 'description': None,
-                  'supported_formats': None, 'tags': None}  # unused. TODO.
+                  'supported_formats': None, 'tags': None, 'position': None}  # unused. TODO.
 # a boolean type caster to circumvent bool('false')==True when we cast CTD 'value' attributes to their correct type
 CAST_BOOLEAN = lambda x: bool(x) if not isinstance(x, str) else (x in ('true', 'True', '1'))
+# instead of using None or _Null, we define non-present 'position' attribute values as -1
+NO_POSITION = -1
 
 
 # Module-level functions for querying and manipulating argument dictionaries.
@@ -349,6 +351,7 @@ class Parameter(object):
             `choices`: list of allowed values (controlled vocabulary)
             `file_formats`: list of allowed file extensions
             `short_name`: string for short name annotation
+            `position`: index (1-based) of the position on which the parameter appears on the command-line
         """
         self.name = name
         self.parent = parent
@@ -366,6 +369,7 @@ class Parameter(object):
         self.is_list = CAST_BOOLEAN(kwargs.get('is_list', False))
         self.description = kwargs.get('description', None)
         self.advanced = CAST_BOOLEAN(kwargs.get('advanced', False))
+        self.position = int(kwargs.get('position', str(NO_POSITION)))
 
         default = kwargs.get('default', _Null)
 
@@ -529,6 +533,9 @@ class Parameter(object):
         top_node = Element('clielement', {"optionIdentifier": prefix+':'.join(lineage)})
         SubElement(top_node, 'mapping', {"referenceName": parent_name+"."+self.name})
         return top_node
+
+    def is_positional(self):
+        return self.position != NO_POSITION
 
 
 class ParameterGroup(object):
