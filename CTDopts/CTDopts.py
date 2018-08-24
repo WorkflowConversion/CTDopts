@@ -106,7 +106,7 @@ def flatten_dict(arg_dict, as_string=False):
 
     flattener(arg_dict, [])
     if as_string:
-        return {':'.join(keylist): value for keylist, value in result.iteritems()}
+        return {':'.join(keylist): value for keylist, value in result.items()}
     else:
         return result
 
@@ -119,7 +119,7 @@ def override_args(*arg_dicts):
     """
     overridden_args = dict(chain(*(flatten_dict(d).iteritems() for d in arg_dicts)))
     result = {}
-    for keylist, value in overridden_args.iteritems():
+    for keylist, value in overridden_args.items():
         set_nested_key(result, keylist, value)
     return result
 
@@ -573,7 +573,7 @@ class ParameterGroup(object):
 
     def _get_children(self):
         children = []
-        for child in self.parameters.itervalues():
+        for child in self.parameters.values():
             if isinstance(child, Parameter):
                 children.append(child)
             elif isinstance(child, ParameterGroup):
@@ -590,7 +590,7 @@ class ParameterGroup(object):
         # Of course this should never happen if the argument tree is built properly but it would be
         # nice to take care of it if a user happens to randomly define his arguments and groups.
         # So first we could sort self.parameters (Items first, Groups after them).
-        for arg in self.parameters.itervalues():
+        for arg in self.parameters.values():
             top.append(arg._xml_node(arg_dict))
         return top
 
@@ -600,19 +600,19 @@ class ParameterGroup(object):
         :param arg_dict: dafualt values for elements
         :return: list of clielements
         """
-        for arg in self.parameters.itervalues():
+        for arg in self.parameters.values():
             yield arg._cli_node(parent_name=parent_name+"."+self.name, prefix=prefix)
 
     def __repr__(self):
         info = []
         info.append('PARAMETER GROUP %s (' % self.name)
-        for subparam in self.parameters.itervalues():
+        for subparam in self.parameters.values():
             info.append(subparam.__repr__())
         info.append(')')
         return '\n'.join(info)
 
 
-class Mapping(object):
+class CLIMapping(object):
     def __init__(self, reference_name=None):
         self.reference_name = reference_name
 
@@ -694,7 +694,7 @@ class CTDModel(object):
         for xml_cli_element in xml_cli_elements:
             mappings = []
             for xml_mapping in xml_cli_element.findall('mapping'):
-                mappings.append(Mapping(xml_mapping.attrib['referenceName'] if 'referenceName' in xml_mapping.attrib else None))
+                mappings.append(CLIMapping(xml_mapping.attrib['referenceName'] if 'referenceName' in xml_mapping.attrib else None))
             self.cli.append(CLIElement(xml_cli_element.attrib['optionIdentifier'] if 'optionIdentifier' in xml_cli_element.attrib else None, mappings))
 
     def _build_param_model(self, element, base):
