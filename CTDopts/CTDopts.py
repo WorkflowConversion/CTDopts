@@ -440,6 +440,8 @@ class Parameter(object):
                 else:
                     defaults_to_validate.append(default)
                 for default_to_validate in defaults_to_validate:
+                    if default_to_validate == '':
+                        continue
                     try:
                         if self.type is int:
                             int(default_to_validate)
