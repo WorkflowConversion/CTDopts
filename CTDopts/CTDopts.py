@@ -3,6 +3,7 @@ from collections import OrderedDict, Mapping
 from itertools import chain
 from xml.etree.ElementTree import Element, SubElement, tostring, parse
 from xml.dom.minidom import parseString
+import urllib2
 import warnings
 
 # dummy classes for input-file and output-file CTD types.
@@ -667,6 +668,15 @@ class CTDModel(object):
         for tool_opt_attrib in ['docurl', 'category']:
             if tool_opt_attrib in root.attrib:
                 self.opt_attribs[tool_opt_attrib] = root.attrib[tool_opt_attrib]
+        # check if the URL actually exists (wrong URLs cause errors in Galaxy tests)
+        if self.opt_attribs.has_key('docurl'):
+            while self.opt_attribs['docurl'] != '':
+                try:
+                    urllib2.urlopen(self.opt_attribs['docurl'])
+                    break
+                except (urllib2.HTTPError, urllib2.URLError):
+                    self.opt_attribs['docurl'] = '/'.join(self.opt_attribs['docurl'].split('/')[:-1])
+
 
         for tool_element in root:
             if tool_element.tag in ['manual', 'description', 'executableName', 'executablePath']:
