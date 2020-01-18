@@ -920,20 +920,9 @@ class CTDModel(object):
             'xsi:noNamespaceSchemaLocation': "https://github.com/genericworkflownodes/CTDopts/raw/master/schemas/Param_1_6_2.xsd"
         })
 
-        # This seems to be some OpenMS hack (defining name, description, version for the second time)
-        # but I'll stick to it for consistency
-        top_node = SubElement(params, 'NODE', name=self.name, description=self.opt_attribs.get('description', ''))
-
-        SubElement(top_node, 'ITEM',
-            name='version',
-            value=self.version,
-            type='string',
-            description='Version of the tool that generated this parameters file.',
-            tags='advanced')
-
         # all the above was boilerplate, now comes the actual parameter tree generation
         args_top_node = self.parameters._xml_node(arg_dict)
-        top_node.append(args_top_node)
+        params.append(args_top_node)
 
         if cli:
             cli_node = SubElement(tool, "cli")
