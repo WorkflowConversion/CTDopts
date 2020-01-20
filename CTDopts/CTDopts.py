@@ -17,6 +17,8 @@ class _ASingleton(type):
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:
             cls._instances[cls] = super(_ASingleton, cls).__call__(*args, **kwargs)
+        else:
+            cls._instances[cls].__init__(*args, **kwargs)
         return cls._instances[cls]
 
 
@@ -26,6 +28,8 @@ class _Null(object):
     """
     __metaclass__ = _ASingleton
 
+    def __str__(self):
+        return ""
 
 class _InFile(str):
     """Dummy class for input-file CTD type. I think most users would want to just get the file path
@@ -211,13 +215,27 @@ class ModelError(Exception):
         super(ModelError, self).__init__()
 
 
+class ModelTypeError(ModelError):
+    """Exception if file of wrong type is provided
+    """
+    def __init__(self, message):
+        super(ModelTypeError, self).__init__()
+        self.message = message
+
+    def __str__(self):
+        return "An error occurred while parsing the CTD file: %s" % self.message
+
+    def __repr__(self):
+        return str(self)
+
+
 class ModelParsingError(ModelError):
     """Exception for errors related to CTD parsing
     """
     def __init__(self, message):
         super(ModelParsingError, self).__init__()
         self.message = message
-        
+
     def __str__(self):
         return "An error occurred while parsing the CTD file: %s" % self.message
     
@@ -336,7 +354,22 @@ class _Choices(_Restriction):
 
 class Parameter(object):
 
-    def __init__(self, name, parent, **kwargs):
+    def __init__(self, name=None, parent=None, node=None, **kwargs):
+        if node is None:
+            kwargs["name"] = name
+            self._init_from_kwargs(parent, **kwargs)
+        else:
+            self._init_from_node(parent, node)
+
+    def _init_from_node(self, parent, nd):
+        setup = _translate_ctd_to_param(dict(nd.attrib))
+        assert nd.tag in ["ITEM", "ITEMLIST"], "Tried to init Parameter from %s"%nd.tag
+        if nd.tag == 'ITEMLIST':
+            setup['default'] = [listitem.attrib['value'] for listitem in nd]
+            setup['is_list'] = True
+        self._init_from_kwargs(parent, **setup)
+
+    def _init_from_kwargs(self, parent, **kwargs):
         """Required positional arguments: `name` string and `parent` ParameterGroup object
 
         Optional keyword arguments:
@@ -353,9 +386,10 @@ class Parameter(object):
             `short_name`: string for short name annotation
             `position`: index (1-based) of the position on which the parameter appears on the command-line
         """
-        self.name = name
+        assert "name" in kwargs, "Parameter initialisation without name"
+        self.name = kwargs["name"]
         self.parent = parent
-        self.short_name = kwargs.get('short_name', _Null)
+        self.short_name = kwargs.get('short_name', _Null())
 
         try:
             self.type = CTDTYPE_TO_TYPE[kwargs.get('type', str)]
@@ -371,7 +405,7 @@ class Parameter(object):
         self.advanced = CAST_BOOLEAN(kwargs.get('advanced', False))
         self.position = int(kwargs.get('position', str(NO_POSITION)))
 
-        default = kwargs.get('default', _Null)
+        default = kwargs.get('default', _Null())
 
         self._validate_numerical_defaults(default)
                     
@@ -380,11 +414,11 @@ class Parameter(object):
         # for every parameter. This should change soon, but for the time being, we have to get around this
         # and disregard such default attributes. The below two lines will be deleted after fixing 1_6_3.
         if default == '' or (self.is_list and default == []):
-            default = _Null
+            default = _Null()
 
         # enforce that default is the correct type if exists. Elementwise for lists
-        if default is _Null:
-            self.default = _Null
+        if type(default) is _Null:
+            self.default = _Null()
         elif default is None:
             self.default = None
         else:
@@ -430,7 +464,7 @@ class Parameter(object):
     # perform some basic validation on the provided default values...
     # an empty string IS NOT a float/int!        
     def _validate_numerical_defaults(self, default):
-        if default is not None and default is not _Null:
+        if default is not None and type(default) is not _Null:
             if self.type is int or self.type is float:
                 defaults_to_validate = []
                 errors_so_far = []
@@ -501,7 +535,7 @@ class Parameter(object):
         if not self.is_list:  # we'll deal with list parameters later, now only normal:
             # TODO: once Param_1_6_3.xsd gets fixed, we won't have to set an empty value='' attrib.
             # but right now value is a required attribute.
-            attribs['value'] = '' if value is _Null else str(value)
+            attribs['value'] = str(value)
             if self.type is bool:  # for booleans str(True) returns 'True' but the XS standard is lowercase
                 attribs['value'] = 'true' if value else 'false'
         attribs['type'] = TYPE_TO_CTDTYPE[self.type]
@@ -521,7 +555,7 @@ class Parameter(object):
             top = Element('ITEMLIST', attribs)
             
             # (lzimmermann) I guess _Null has to be exluded here, too
-            if value is not None and value is not _Null:
+            if value is not None and type(value) is not _Null:
                 for d in value:
                     SubElement(top, 'LISTITEM', {'value': str(d)})
             return top
@@ -539,11 +573,23 @@ class Parameter(object):
 
 
 class ParameterGroup(object):
-    def __init__(self, name, parent, description=None):
+    def __init__(self, name=None, parent=None, node=None, description=None):
+        self.parameters = OrderedDict()
         self.name = name
         self.parent = parent
         self.description = description
-        self.parameters = OrderedDict()
+        if node == None:
+            return
+
+        validate_contains_keys(node.attrib, ['name'], 'NODE')
+        self.name = node.attrib['name']
+        if "description" in node.attrib:
+            self.description = node.attrib['description']
+        for c in node:
+            if c.tag == 'NODE':
+                self.parameters[c.attrib['name']] = ParameterGroup(parent=self, node=c)
+            elif c.tag in ["ITEMLIST", "ITEM"]:
+                self.parameters[c.attrib['name']] = Parameter(parent=self, node=c)
 
     def add(self, name, **kwargs):
         """Registers a parameter in a ParameterGroup. Required: `name` string.
@@ -590,7 +636,7 @@ class ParameterGroup(object):
         # Of course this should never happen if the argument tree is built properly but it would be
         # nice to take care of it if a user happens to randomly define his arguments and groups.
         # So first we could sort self.parameters (Items first, Groups after them).
-        for arg in self.parameters.itervalues():
+        for arg in self.parameters.values():
             top.append(arg._xml_node(arg_dict))
         return top
 
@@ -628,6 +674,56 @@ class CLI(object):
         self.cli_elements = cli_elements
 
 
+class Parameters(ParameterGroup):
+    def __init__(self, name=None, version=None, from_file=None, from_node=None, **kwargs):
+        
+        self.name = None
+        self.version = None
+        self.description = None
+
+        if from_file is not None or from_node is not None:
+            if from_file is not None:
+                root = parse(from_file).getroot()
+            else:
+                root = from_node
+            if root.tag != 'PARAMETERS':
+                raise ModelTypeError("Invalid PARAMETERS file root is not <PARAMETERS>")
+            # tool_element.attrib['version'] == '1.6.2'  # check whether the schema matches the one CTDOpts uses?
+            params_container_node = root.find('NODE')
+
+            one = root.find('./NODE/NODE[@name="1"]')
+            version = root.find('./NODE/ITEM[@name="version"]')
+
+            if one is not None and version is not None:
+                super(Parameters, self).__init__(name=None, parent=None, node=one, description=None)
+            else:
+                super(Parameters, self).__init__(name=None, parent=None, node=params_container_node, description=None)
+            self.description = params_container_node.attrib.get("description", "")
+            self.name = params_container_node.attrib.get("name", "")
+            self.version = version.attrib["value"]
+        else:
+            self.name = name
+            self.version = version
+            super(Parameters, self).__init__(name=name, parent=None, node=None, description=None)
+
+    def _xml_node(self, arg_dict):
+        params = Element('PARAMETERS', {
+            'version': '1.6.2',
+            'xmlns:xsi': "http://www.w3.org/2001/XMLSchema-instance",
+            'xsi:noNamespaceSchemaLocation': "https://github.com/genericworkflownodes/CTDopts/raw/master/schemas/Param_1_6_2.xsd"
+        })
+        node = Element("NODE", {"name": self.name, 'description': self.description} )
+        params.append(node)
+
+        node.append( Element("ITEM", {"name": "version", 'value': self.version, 'type': "string", 'description': "Version of the tool that generated this parameters file.", "required": "false", "advanced": "true"} ))
+        one_node = Element("NODE", {"name": "1", 'description': "Instance &apos;1&apos; section for &apos;%s&apos;"%self.name} )
+        node.append(one_node)
+
+        for arg in self.parameters.values():
+            n = arg._xml_node(arg_dict)
+            one_node.append(n)
+        return params
+
 class CTDModel(object):
     def __init__(self, name=None, version=None, from_file=None, **kwargs):
         """The parameter model of a tool.
@@ -653,7 +749,8 @@ class CTDModel(object):
         """Builds a CTDModel from a CTD XML file.
         """
         root = parse(filename).getroot()
-        assert root.tag == 'tool', "Invalid CTD file, root is not <tool>"  # TODO: own exception
+        if root.tag != 'tool': 
+            raise ModelTypeError("Invalid CTD file, root is not <tool>")
 
         self.opt_attribs = {}
         self.cli = []
@@ -675,20 +772,7 @@ class CTDModel(object):
                 self._build_cli(tool_element.findall('clielement'))
 
             if tool_element.tag == 'PARAMETERS':
-                # tool_element.attrib['version'] == '1.6.2'  # check whether the schema matches the one CTDOpts uses?
-                params_container_node = tool_element.find('NODE')
-                # we have to check the case in which the parent node contains 
-                # item/itemlist elements AND node element children
-                params_container_node_contains_items = params_container_node.find('ITEM') is not None or params_container_node.find('ITEMLIST')                 
-                # assert params_container_node.attrib['name'] == self.name
-                # check params_container_node's first ITEM child's tool version information again? (OpenMS legacy?)
-                params = params_container_node.find('NODE')  # OpenMS legacy again, NODE with name="1" on top
-                # check for the case when we have PARAMETERS/NODE/ITEM
-                if params is None or params_container_node_contains_items:                    
-                    self.parameters = self._build_param_model(params_container_node, base=None)
-                else:
-                    # OpenMS legacy again, PARAMETERS/NODE/NODE/ITEM
-                    self.parameters = self._build_param_model(params, base=None)
+                self.parameters = Parameters(from_node = tool_element)
 
     def _build_cli(self, xml_cli_elements):
         for xml_cli_element in xml_cli_elements:
@@ -750,7 +834,7 @@ class CTDModel(object):
     def get_defaults(self):
         """Returns a nested dictionary with all parameters of the model having default values.
         """
-        params_w_default = (p for p in self.list_parameters() if p.default is not _Null)
+        params_w_default = (p for p in self.list_parameters() if type(p.default) is not _Null)
         defaults = {}
         for param in params_w_default:
             set_nested_key(defaults, param.get_lineage(name_only=True), param.default)
@@ -834,14 +918,14 @@ class CTDModel(object):
                 # that we want to clear, this would be the only way to do it so I'm inclined to use '*'
                 cl_arg_kws['nargs'] = '*'
 
-            if param.default is not _Null():
+            if type(param.default) is not _Null():
                 cl_arg_kws['default'] = param.default
 
             if param.required:
                 cl_arg_kws['required'] = True
 
             # hardcoded 'group:subgroup:param1'
-            if all(a is not _Null for a in short_lineage):
+            if all(type(a) is not _Null for a in short_lineage):
                 cl_parser.add_argument(short_prefix+':'.join(short_lineage), prefix + ':'.join(lineage), **cl_arg_kws)
             else:
                 cl_parser.add_argument(prefix + ':'.join(lineage), **cl_arg_kws)
@@ -913,16 +997,8 @@ class CTDModel(object):
             if 'error' in log:
                 SubElement(log_node, 'executionError').text = log['error']
 
-        # XML.ETREE SYNTAX
-        params = SubElement(tool, 'PARAMETERS', {
-            'version': '1.6.2',
-            'xmlns:xsi': "http://www.w3.org/2001/XMLSchema-instance",
-            'xsi:noNamespaceSchemaLocation': "https://github.com/genericworkflownodes/CTDopts/raw/master/schemas/Param_1_6_2.xsd"
-        })
-
         # all the above was boilerplate, now comes the actual parameter tree generation
-        args_top_node = self.parameters._xml_node(arg_dict)
-        params.append(args_top_node)
+        tool.append(self.parameters._xml_node(arg_dict))
 
         if cli:
             cli_node = SubElement(tool, "cli")
@@ -951,7 +1027,7 @@ class CTDModel(object):
             'error': standard error or whatever error log the user wants to store
         `cli`: boolean whether or not cli elements should be generated (needed for GenericKNIMENode for example)
         """
-        xml_content = parseString(tostring(self.generate_ctd_tree(arg_dict, log, cli), encoding="UTF-8")).toprettyxml()
+        xml_content = parseString(tostring(self.generate_ctd_tree(arg_dict, log, cli), encoding="UTF-8")).toprettyxml(indent="  ")
 
         if isinstance(out_file, str):  # if out_file is a string, we create and write the file
             with open(out_file, 'w') as f:
@@ -1034,4 +1110,4 @@ def validate_contains_keys(dictionary, keys, element_tag):
     for key in keys:
         assert key in dictionary, "Missing required attribute '%s' in %s element. Present attributes: %s" % \
                                   (key, element_tag,
-                                   ', '.join(['{0}="{1}"'.format(k, v) for k, v in dictionary.iteritems()]))
+                                   ', '.join(['{0}="{1}"'.format(k, v) for k, v in dictionary.items()]))
