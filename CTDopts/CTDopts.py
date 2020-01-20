@@ -680,6 +680,7 @@ class Parameters(ParameterGroup):
         self.name = None
         self.version = None
         self.description = None
+        self.opt_attribs = dict() #little helper to have similar access as to CTDModel;
 
         if from_file is not None or from_node is not None:
             if from_file is not None:
@@ -700,11 +701,15 @@ class Parameters(ParameterGroup):
                 super(Parameters, self).__init__(name=None, parent=None, node=params_container_node, description=None)
             self.description = params_container_node.attrib.get("description", "")
             self.name = params_container_node.attrib.get("name", "")
-            self.version = version.attrib["value"]
+            if version:
+                self.version = version.attrib["value"]
         else:
             self.name = name
             self.version = version
             super(Parameters, self).__init__(name=name, parent=None, node=None, description=None)
+        
+        self.opt_attribs['description'] = self.description
+
 
     def _xml_node(self, arg_dict):
         params = Element('PARAMETERS', {
