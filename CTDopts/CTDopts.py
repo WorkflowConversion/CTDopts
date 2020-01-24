@@ -31,6 +31,7 @@ class _Null(object):
     def __str__(self):
         return ""
 
+
 class _InFile(str):
     """Dummy class for input-file CTD type. I think most users would want to just get the file path
     string but if it's required to open these files for reading or writing, one could do it in these
@@ -53,8 +54,19 @@ CTDTYPE_TO_TYPE = {'int': int, 'float': float, 'double': float, 'string': str, '
                    bool: bool, _InFile: _InFile, _OutFile: _OutFile}
 PARAM_DEFAULTS = {'advanced': False, 'required': False, 'restrictions': None, 'description': None,
                   'supported_formats': None, 'tags': None, 'position': None}  # unused. TODO.
-# a boolean type caster to circumvent bool('false')==True when we cast CTD 'value' attributes to their correct type
-CAST_BOOLEAN = lambda x: bool(x) if not isinstance(x, str) else (x in ('true', 'True', '1'))
+
+
+def CAST_BOOLEAN(x):
+    """
+    a boolean type caster to circumvent bool('false')==True when we cast CTD
+    'value' attributes to their correct type
+    """
+    if not isinstance(x, str):
+        return bool(x)
+    else:
+        return x in ('true', 'True', '1')
+
+
 # instead of using None or _Null, we define non-present 'position' attribute values as -1
 NO_POSITION = -1
 
@@ -238,7 +250,7 @@ class ModelParsingError(ModelError):
 
     def __str__(self):
         return "An error occurred while parsing the CTD file: %s" % self.message
-    
+
     def __repr__(self):
         return str(self)
 
@@ -363,9 +375,12 @@ class Parameter(object):
 
     def _init_from_node(self, parent, nd):
         setup = _translate_ctd_to_param(dict(nd.attrib))
-        assert nd.tag in ["ITEM", "ITEMLIST"], "Tried to init Parameter from %s"%nd.tag
+        assert nd.tag in ["ITEM", "ITEMLIST"], "Tried to init Parameter from %s" % nd.tag
         if nd.tag == 'ITEMLIST':
-            setup['default'] = [listitem.attrib['value'] for listitem in nd]
+            if len(nd) > 0:
+                setup['default'] = [listitem.attrib['value'] for listitem in nd]
+            else:
+                setup['default'] = []
             setup['is_list'] = True
         self._init_from_kwargs(parent, **setup)
 
@@ -393,7 +408,7 @@ class Parameter(object):
 
         try:
             self.type = CTDTYPE_TO_TYPE[kwargs.get('type', str)]
-        except:
+        except KeyError:
             raise UnsupportedTypeError(kwargs.get('type'))
 
         self.tags = kwargs.get('tags', [])
@@ -408,7 +423,7 @@ class Parameter(object):
         default = kwargs.get('default', _Null())
 
         self._validate_numerical_defaults(default)
-                    
+
         # TODO 1_6_3: right now the CTD schema requires the 'value' attribute to be present for every parameter.
         # So every time we build a model from a CTD file, we find at least a default='' or default=[]
         # for every parameter. This should change soon, but for the time being, we have to get around this
@@ -462,7 +477,7 @@ class Parameter(object):
             self.restrictions = _FileFormat(kwargs['file_formats'])
 
     # perform some basic validation on the provided default values...
-    # an empty string IS NOT a float/int!        
+    # an empty string IS NOT a float/int!
     def _validate_numerical_defaults(self, default):
         if default is not None and type(default) is not _Null:
             if self.type is int or self.type is float:
@@ -553,7 +568,6 @@ class Parameter(object):
 
         if self.is_list:  # and now list parameters
             top = Element('ITEMLIST', attribs)
-            
             # (lzimmermann) I guess _Null has to be exluded here, too
             if value is not None and type(value) is not _Null:
                 for d in value:
@@ -564,8 +578,8 @@ class Parameter(object):
 
     def _cli_node(self, parent_name, prefix='--'):
         lineage = self.get_lineage(name_only=True)
-        top_node = Element('clielement', {"optionIdentifier": prefix+':'.join(lineage)})
-        SubElement(top_node, 'mapping', {"referenceName": parent_name+"."+self.name})
+        top_node = Element('clielement', {"optionIdentifier": prefix + ':'.join(lineage)})
+        SubElement(top_node, 'mapping', {"referenceName": parent_name + "." + self.name})
         return top_node
 
     def is_positional(self):
@@ -578,7 +592,7 @@ class ParameterGroup(object):
         self.name = name
         self.parent = parent
         self.description = description
-        if node == None:
+        if node is None:
             return
 
         validate_contains_keys(node.attrib, ['name'], 'NODE')
@@ -647,7 +661,7 @@ class ParameterGroup(object):
         :return: list of clielements
         """
         for arg in self.parameters.itervalues():
-            yield arg._cli_node(parent_name=parent_name+"."+self.name, prefix=prefix)
+            yield arg._cli_node(parent_name=parent_name + "." + self.name, prefix=prefix)
 
     def __repr__(self):
         info = []
@@ -676,11 +690,10 @@ class CLI(object):
 
 class Parameters(ParameterGroup):
     def __init__(self, name=None, version=None, from_file=None, from_node=None, **kwargs):
-        
         self.name = None
         self.version = None
         self.description = None
-        self.opt_attribs = dict() #little helper to have similar access as to CTDModel;
+        self.opt_attribs = dict()  # little helper to have similar access as to CTDModel;
 
         if from_file is not None or from_node is not None:
             if from_file is not None:
@@ -701,15 +714,14 @@ class Parameters(ParameterGroup):
                 super(Parameters, self).__init__(name=None, parent=None, node=params_container_node, description=None)
             self.description = params_container_node.attrib.get("description", "")
             self.name = params_container_node.attrib.get("name", "")
-            if version:
+            if version is not None:
                 self.version = version.attrib["value"]
         else:
             self.name = name
             self.version = version
             super(Parameters, self).__init__(name=name, parent=None, node=None, description=None)
-        
-        self.opt_attribs['description'] = self.description
 
+        self.opt_attribs['description'] = self.description
 
     def _xml_node(self, arg_dict):
         params = Element('PARAMETERS', {
@@ -717,17 +729,18 @@ class Parameters(ParameterGroup):
             'xmlns:xsi': "http://www.w3.org/2001/XMLSchema-instance",
             'xsi:noNamespaceSchemaLocation': "https://github.com/genericworkflownodes/CTDopts/raw/master/schemas/Param_1_6_2.xsd"
         })
-        node = Element("NODE", {"name": self.name, 'description': self.description} )
+        node = Element("NODE", {"name": self.name, 'description': self.description})
         params.append(node)
 
-        node.append( Element("ITEM", {"name": "version", 'value': self.version, 'type': "string", 'description': "Version of the tool that generated this parameters file.", "required": "false", "advanced": "true"} ))
-        one_node = Element("NODE", {"name": "1", 'description': "Instance &apos;1&apos; section for &apos;%s&apos;"%self.name} )
+        node.append(Element("ITEM", {"name": "version", 'value': self.version, 'type': "string", 'description': "Version of the tool that generated this parameters file.", "required": "false", "advanced": "true"}))
+        one_node = Element("NODE", {"name": "1", 'description': "Instance &apos;1&apos; section for &apos;%s&apos;" % self.name})
         node.append(one_node)
 
         for arg in self.parameters.values():
             n = arg._xml_node(arg_dict)
             one_node.append(n)
         return params
+
 
 class CTDModel(object):
     def __init__(self, name=None, version=None, from_file=None, **kwargs):
@@ -754,7 +767,7 @@ class CTDModel(object):
         """Builds a CTDModel from a CTD XML file.
         """
         root = parse(filename).getroot()
-        if root.tag != 'tool': 
+        if root.tag != 'tool':
             raise ModelTypeError("Invalid CTD file, root is not <tool>")
 
         self.opt_attribs = {}
@@ -777,7 +790,7 @@ class CTDModel(object):
                 self._build_cli(tool_element.findall('clielement'))
 
             if tool_element.tag == 'PARAMETERS':
-                self.parameters = Parameters(from_node = tool_element)
+                self.parameters = Parameters(from_node=tool_element)
 
     def _build_cli(self, xml_cli_elements):
         for xml_cli_element in xml_cli_elements:
@@ -931,13 +944,12 @@ class CTDModel(object):
 
             # hardcoded 'group:subgroup:param1'
             if all(type(a) is not _Null for a in short_lineage):
-                cl_parser.add_argument(short_prefix+':'.join(short_lineage), prefix + ':'.join(lineage), **cl_arg_kws)
+                cl_parser.add_argument(short_prefix + ':'.join(short_lineage), prefix + ':'.join(lineage), **cl_arg_kws)
             else:
                 cl_parser.add_argument(prefix + ':'.join(lineage), **cl_arg_kws)
 
-
         cl_arg_list = cl_args.split() if isinstance(cl_args, str) else cl_args
-        #if no arguments are given print help
+        # if no arguments are given print help
         if not cl_arg_list:
             cl_arg_list.append("-h")
         parsed_args, rest = cl_parser.parse_known_args(cl_arg_list)
@@ -1081,7 +1093,7 @@ def args_from_file(filename):
 
 
 def parse_cl_directives(cl_args, write_tool_ctd='write_tool_ctd', write_param_ctd='write_param_ctd',
-                       input_ctd='input_ctd', prefix='--'):
+                        input_ctd='input_ctd', prefix='--'):
     '''Parses command line CTD processing directives. `write_tool_ctd`, `write_param_ctd` and `input_ctd`
     string are customizable, and will be parsed for in command line. `prefix` should be one or two dashes,
     default is '--'.
@@ -1091,6 +1103,14 @@ def parse_cl_directives(cl_args, write_tool_ctd='write_tool_ctd', write_param_ct
         'write_param_ctd': if flag set, either True or the filename provided in command line. Otherwise None.
         'input_ctd': filename if found, otherwise None
     '''
+    def transform(x):
+        if x is None:
+            return None
+        elif x == []:
+            return True
+        else:
+            return x[0]
+
     parser = argparse.ArgumentParser()
     parser.add_argument(prefix + write_tool_ctd, nargs='*')
     parser.add_argument(prefix + write_param_ctd, nargs='*')
@@ -1099,8 +1119,6 @@ def parse_cl_directives(cl_args, write_tool_ctd='write_tool_ctd', write_param_ct
     cl_arg_list = cl_args.split() if isinstance(cl_args, str) else cl_args  # string or list of args
     directives, rest = parser.parse_known_args(cl_arg_list)
     directives = vars(directives)
-
-    transform = lambda x: None if x is None else True if x == [] else x[0]
 
     parsed_directives = {}
     parsed_directives['write_tool_ctd'] = transform(directives[write_tool_ctd])
