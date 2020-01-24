@@ -328,7 +328,7 @@ class _FileFormat(_Restriction):
     def __init__(self, formats):
         super(_FileFormat, self).__init__()
         if isinstance(formats, str):  # to handle ['txt', 'csv', 'tsv'] and '*.txt,*.csv,*.tsv'
-            formats = map(lambda x: x.replace('*.', '').strip(), formats.split(','))
+            formats = [ x.replace('*.', '').strip() for x in formats.split(',') ]
         self.formats = formats
 
     def ctd_restriction_string(self):
@@ -438,7 +438,7 @@ class Parameter(object):
             self.default = None
         else:
             if self.is_list:
-                self.default = map(self.type, default)
+                self.default = list(map(self.type, default))
             else:
                 self.default = self.type(default)
         # same for choices. I'm starting to think it's really unpythonic and we should trust input. TODO
@@ -472,7 +472,7 @@ class Parameter(object):
                 raise ModelParsingError("Provided range [%s, %s] is not of type %s" %
                                         (num_range[0], num_range[1], self.type))
         elif 'choices' in kwargs:
-            self.restrictions = _Choices(map(self.type, kwargs['choices']))
+            self.restrictions = _Choices(list(map(self.type, kwargs['choices'])))
         elif 'file_formats' in kwargs:
             self.restrictions = _FileFormat(kwargs['file_formats'])
 
