@@ -114,7 +114,7 @@ def flatten_dict(arg_dict, as_string=False):
     def flattener(subgroup, level):
         # recursive closure that accesses and modifies result dict and registers nested elements
         # as it encounters them
-        for key, value in subgroup.iteritems():
+        for key, value in subgroup.items():
             if isinstance(value, Mapping):  # collections.Mapping instead of dict for generality
                 flattener(value, level + [key])
             else:
@@ -122,7 +122,7 @@ def flatten_dict(arg_dict, as_string=False):
 
     flattener(arg_dict, [])
     if as_string:
-        return {':'.join(keylist): value for keylist, value in result.iteritems()}
+        return {':'.join(keylist): value for keylist, value in result.items()}
     else:
         return result
 
@@ -405,7 +405,6 @@ class Parameter(object):
         self.name = kwargs["name"]
         self.parent = parent
         self.short_name = kwargs.get('short_name', _Null())
-
         try:
             self.type = CTDTYPE_TO_TYPE[kwargs.get('type', str)]
         except KeyError:
@@ -441,6 +440,7 @@ class Parameter(object):
                 self.default = list(map(self.type, default))
             else:
                 self.default = self.type(default)
+
         # same for choices. I'm starting to think it's really unpythonic and we should trust input. TODO
 
         if self.type == bool:
@@ -509,14 +509,21 @@ class Parameter(object):
         ie. the nesting lineage of the Parameter object. With `name_only` setting on, it only returns
         the names of said objects. For top level parameters, it's a list with a single element.
         """
-        lineage = []
-        i = self
-        while i.parent is not None:
-            # Exclude ParameterGroup here, since they do not have a short_name attribute (lzimmermann)
-            lineage.append(i.short_name if short_name and not isinstance(i, ParameterGroup) else i.name if name_only else i)
-            i = i.parent
-        lineage.reverse()
-        return lineage
+        if name_only:
+            n = self.name
+        elif short_name:
+            n = self.short_name
+        else:
+            n = self
+        if self.parent is None:
+            return [n]
+        else:
+            return self.parent.get_lineage(name_only, short_name) + [n]
+
+    def get_parameters(self, nodes=False):
+        """return an iterator over all parameters
+        """
+        yield self
 
     def __repr__(self):
         info = []
@@ -569,9 +576,13 @@ class Parameter(object):
         if self.is_list:  # and now list parameters
             top = Element('ITEMLIST', attribs)
             # (lzimmermann) I guess _Null has to be exluded here, too
-            if value is not None and type(value) is not _Null:
+            if value is None or type(value) is _Null:
+                pass
+            elif type(value) is list:
                 for d in value:
                     SubElement(top, 'LISTITEM', {'value': str(d)})
+            elif str(value) != "":
+                SubElement(top, 'LISTITEM', {'value': str(value)})
             return top
         else:
             return Element('ITEM', attribs)
@@ -633,7 +644,7 @@ class ParameterGroup(object):
 
     def _get_children(self):
         children = []
-        for child in self.parameters.itervalues():
+        for child in self.parameters.values():
             if isinstance(child, Parameter):
                 children.append(child)
             elif isinstance(child, ParameterGroup):
@@ -670,6 +681,31 @@ class ParameterGroup(object):
             info.append(subparam.__repr__())
         info.append(')')
         return '\n'.join(info)
+
+    def get_lineage(self, name_only=False, short_name=False):
+        """Returns a list of zero or more ParameterGroup objects plus this one object at the end,
+        ie. the nesting lineage of the ParameterGroup object. With `name_only` setting on, it only returns
+        the names of said objects. For top level parameters, it's a list with a single element.
+        """
+        if name_only:
+            n = self.name
+        elif short_name:
+            n = self.short_name
+        else:
+            n = self
+        if self.parent is None:
+            return [n]
+        else:
+            return self.parent.get_lineage(name_only, short_name) + [n]
+
+
+    def get_parameters(self, nodes=False):
+        """return an iterator over all parameters
+        """
+        if nodes:
+            yield self
+        for p in self.parameters.values():
+            yield from p.get_parameters(nodes)
 
 
 class Mapping(object):
@@ -741,6 +777,114 @@ class Parameters(ParameterGroup):
             one_node.append(n)
         return params
 
+    def get_lineage(self, name_only=False, short_name=False):
+        """Returns a list of zero or more ParameterGroup objects plus this one object at the end,
+        ie. the nesting lineage of the ParameterGroup object. With `name_only` setting on, it only returns
+        the names of said objects. For top level parameters, it's a list with a single element.
+        """
+        return []
+
+    def get_parameters(self, nodes=False):
+        """return an iterator over all parameters
+        """
+        for p in self.parameters.values():
+            yield from p.get_parameters(nodes)
+
+    def parse_cl_args(self, cl_args=None, prefix='--', short_prefix="-", get_remaining=False, ignore_required=False):
+        """Parses command line arguments `cl_args` (either a string or a list like sys.argv[1:])
+        assuming that parameter names are prefixed by `prefix` (default '--').
+
+        Returns a nested dictionary with found arguments. Note that parameters have to be registered
+        in the model to be parsed and returned.
+
+        Remaining (unmatchable) command line arguments can be accessed if the method is called with
+        `get_remaining`. In this case, the method returns a tuple, whose first element is the
+        argument dictionary, the second a list of unmatchable command line options.
+        """
+        cl_arg_list = cl_args.split() if isinstance(cl_args, str) else cl_args
+        # if no arguments are given print help
+        if not cl_arg_list:
+            cl_arg_list.append("-h")
+
+        cl_parser = argparse.ArgumentParser()
+        for param in self.get_parameters():
+            lineage = param.get_lineage(name_only=True)
+            short_lineage = param.get_lineage(name_only=True, short_name=True)
+            cli_param = prefix + ':'.join(lineage)
+            cli_short_param = short_prefix + ':'.join(short_lineage)
+            idx = -1
+            if cli_param in cl_arg_list:
+                idx = cl_arg_list.index(cli_param)
+            elif cli_short_param in cl_arg_list:
+                idx = cl_arg_list.index(cli_short_param)
+
+            cl_arg_kws = {}  # argument processing info passed to argparse in keyword arguments, we build them here
+            if idx >= 0 and idx+1 < len(cl_arg_list) and cl_arg_list[idx+1] in ['true','false']:
+                cl_arg_kws['type'] = str
+            elif param.type is bool or (param.type is str and type(param.restrictions) is _Choices and set(param.restrictions.choices) == set(["true","false"])):  # boolean flags are not followed by a value, only their presence is required
+                cl_arg_kws['action'] = 'store_true'
+            else:
+                # we take every argument as string and cast them only later in validate_args() if
+                # explicitly asked for. This is because we don't want to deal with type exceptions
+                # at this stage, and prefer the multi-leveled strictness settings in validate_args()
+                cl_arg_kws['type'] = str
+
+            if param.is_list:
+                # or '+' rather? Should we allow empty lists here? If default is a proper list with elements
+                # that we want to clear, this would be the only way to do it so I'm inclined to use '*'
+                cl_arg_kws['nargs'] = '*'
+
+            if type(param.default) is not _Null():
+                cl_arg_kws['default'] = param.default
+
+            if param.required and not ignore_required:
+                cl_arg_kws['required'] = True
+
+            # hardcoded 'group:subgroup:param1'
+            if all(type(a) is not _Null for a in short_lineage):
+                cl_parser.add_argument(cli_short_param, cli_param, **cl_arg_kws)
+            else:
+                cl_parser.add_argument(cli_param, **cl_arg_kws)
+
+        parsed_args, rest = cl_parser.parse_known_args(cl_arg_list)
+        res_args = {}  # OrderedDict()
+        for param_name, value in vars(parsed_args).items():
+            # None values are created by argparse if it didn't find the argument or default=None, we skip params
+            # that dont have a default value
+            if value is not None or value == self.parameters.parameters[param_name].default:
+                set_nested_key(res_args, param_name.split(':'), value)
+        return res_args if not get_remaining else (res_args, rest)
+
+    def generate_ctd_tree(self, arg_dict=None, *args):
+        """Generates an XML ElementTree from the parameters model and returns
+        the top <parameters> Element object, that can be output to a file
+        (Parameters.write_ctd() does everything needed if the user
+        doesn't need access to the actual element-tree).
+        Calling this function without any arguments generates the tool-describing CTD with default
+        values. For parameter-storing and logging optional arguments can be passed:
+
+        `arg_dict`: nested dictionary with values to be used instead of defaults.
+        other arguments are irnored
+        """
+        return self._xml_node(arg_dict)
+
+    def write_ctd(self, out_file, arg_dict=None, log=None, cli=False):
+        """Generates a CTD XML from the model and writes it to `out_file`, which is either a string
+        to a file path or a stream with a write() method.
+
+        Calling this function without any arguments besides `out_file` generates the tool-describing
+        CTD with default values. For parameter-storing and logging optional arguments can be passed:
+
+        `arg_dict`: nested dictionary with values to be used instead of defaults.
+        `log`: dictionary with the following optional keys:
+            'time_start' and 'time_finish': proper XML date strings (eg. datetime.datetime.now(pytz.utc).isoformat())
+            'status': exit status
+            'output': standard output or whatever output the user intends to log
+            'warning': warning logs
+            'error': standard error or whatever error log the user wants to store
+        `cli`: boolean whether or not cli elements should be generated (needed for GenericKNIMENode for example)
+        """
+        write_ctd(self, out_file, arg_dict, log, cli)
 
 class CTDModel(object):
     def __init__(self, name=None, version=None, from_file=None, **kwargs):
@@ -907,59 +1051,10 @@ class CTDModel(object):
                     set_nested_key(validated_args, lineage, param.default)
         return validated_args
 
-    def parse_cl_args(self, cl_args=None, prefix='--', short_prefix="-", get_remaining=False):
-        """Parses command line arguments `cl_args` (either a string or a list like sys.argv[1:])
-        assuming that parameter names are prefixed by `prefix` (default '--').
-
-        Returns a nested dictionary with found arguments. Note that parameters have to be registered
-        in the model to be parsed and returned.
-
-        Remaining (unmatchable) command line arguments can be accessed if the method is called with
-        `get_remaining`. In this case, the method returns a tuple, whose first element is the
-        argument dictionary, the second a list of unmatchable command line options.
-        """
-        cl_parser = argparse.ArgumentParser()
-        for param in self.list_parameters():
-            lineage = param.get_lineage(name_only=True)
-            short_lineage = param.get_lineage(name_only=True, short_name=True)
-            cl_arg_kws = {}  # argument processing info passed to argparse in keyword arguments, we build them here
-            if param.type is bool:  # boolean flags are not followed by a value, only their presence is required
-                cl_arg_kws['action'] = 'store_true'
-            else:
-                # we take every argument as string and cast them only later in validate_args() if
-                # explicitly asked for. This is because we don't want to deal with type exceptions
-                # at this stage, and prefer the multi-leveled strictness settings in validate_args()
-                cl_arg_kws['type'] = str
-
-            if param.is_list:
-                # or '+' rather? Should we allow empty lists here? If default is a proper list with elements
-                # that we want to clear, this would be the only way to do it so I'm inclined to use '*'
-                cl_arg_kws['nargs'] = '*'
-
-            if type(param.default) is not _Null():
-                cl_arg_kws['default'] = param.default
-
-            if param.required:
-                cl_arg_kws['required'] = True
-
-            # hardcoded 'group:subgroup:param1'
-            if all(type(a) is not _Null for a in short_lineage):
-                cl_parser.add_argument(short_prefix + ':'.join(short_lineage), prefix + ':'.join(lineage), **cl_arg_kws)
-            else:
-                cl_parser.add_argument(prefix + ':'.join(lineage), **cl_arg_kws)
-
-        cl_arg_list = cl_args.split() if isinstance(cl_args, str) else cl_args
-        # if no arguments are given print help
-        if not cl_arg_list:
-            cl_arg_list.append("-h")
-        parsed_args, rest = cl_parser.parse_known_args(cl_arg_list)
-        res_args = {}  # OrderedDict()
-        for param_name, value in vars(parsed_args).iteritems():
-            # None values are created by argparse if it didn't find the argument or default=None, we skip params
-            # that dont have a default value
-            if value is not None or value == self.parameters.parameters[param_name].default:
-                set_nested_key(res_args, param_name.split(':'), value)
-        return res_args if not get_remaining else (res_args, rest)
+    def parse_cl_args(self, cl_args=None, prefix='--', short_prefix="-",
+                      get_remaining=False, ignore_required=False):
+        return self.parameters.parse_cl_args(cl_args, prefix, short_prefix,
+                                             get_remaining, ignore_required)
 
     def generate_ctd_tree(self, arg_dict=None, log=None, cli=False, prefix='--'):
         """Generates an XML ElementTree from the model and returns the top <tool> Element object,
@@ -1028,6 +1123,11 @@ class CTDModel(object):
         # xml.etree syntax (no pretty print available, so we use xml.dom.minidom stuff)
         return tool
 
+    def get_parameters(self, nodes=False):
+        """return an iterator over all parameters
+        """
+        yield from self.parameters.get_parameters(nodes)
+
     def write_ctd(self, out_file, arg_dict=None, log=None, cli=False):
         """Generates a CTD XML from the model and writes it to `out_file`, which is either a string
         to a file path or a stream with a write() method.
@@ -1044,13 +1144,18 @@ class CTDModel(object):
             'error': standard error or whatever error log the user wants to store
         `cli`: boolean whether or not cli elements should be generated (needed for GenericKNIMENode for example)
         """
-        xml_content = parseString(tostring(self.generate_ctd_tree(arg_dict, log, cli), encoding="UTF-8")).toprettyxml(indent="  ")
+        write_ctd(self, out_file, arg_dict, log, cli)
 
-        if isinstance(out_file, str):  # if out_file is a string, we create and write the file
-            with open(out_file, 'w') as f:
-                f.write(xml_content)
-        else:  # otherwise we assume it's a writable stream and write into that.
-            out_file.write(xml_content)
+
+def write_ctd(model, out_file, arg_dict=None, log=None, cli=False):
+    xml_content = parseString(tostring(model.generate_ctd_tree(arg_dict, log, cli), encoding="UTF-8")).toprettyxml(indent="  ")
+
+    if isinstance(out_file, str):  # if out_file is a string, we create and write the file
+        with open(out_file, 'w') as f:
+            f.write(xml_content)
+    else:  # otherwise we assume it's a writable stream and write into that.
+        out_file.write(xml_content)
+
 
 
 def args_from_file(filename):
