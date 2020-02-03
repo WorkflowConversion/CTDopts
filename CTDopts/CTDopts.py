@@ -548,7 +548,6 @@ class Parameter(object):
                 value = self.default
         else:  # otherwise take the parameter default
             value = self.default
-
         # XML attributes to be created (depending on whether they are needed or not):
         # name, value, type, description, tags, restrictions, supported_formats
 
@@ -558,13 +557,15 @@ class Parameter(object):
             # TODO: once Param_1_6_3.xsd gets fixed, we won't have to set an empty value='' attrib.
             # but right now value is a required attribute.
             attribs['value'] = str(value)
-            if self.type is bool:  # for booleans str(True) returns 'True' but the XS standard is lowercase
+            if self.type is bool or type(value) is bool:  # for booleans str(True) returns 'True' but the XS standard is lowercase
                 attribs['value'] = 'true' if value else 'false'
         attribs['type'] = TYPE_TO_CTDTYPE[self.type]
         if self.description:
             attribs['description'] = self.description
         if self.tags:
             attribs['tags'] = ','.join(self.tags)
+        if self.advanced:
+            attribs['advanced'] = str(self.advanced).lower()
 
         # Choices and NumericRange restrictions go in the 'restrictions' attrib, FileFormat has
         # its own attribute 'supported_formats' for whatever historic reason.
