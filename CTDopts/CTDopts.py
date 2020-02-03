@@ -328,7 +328,7 @@ class _FileFormat(_Restriction):
     def __init__(self, formats):
         super(_FileFormat, self).__init__()
         if isinstance(formats, str):  # to handle ['txt', 'csv', 'tsv'] and '*.txt,*.csv,*.tsv'
-            formats = [ x.replace('*.', '').strip() for x in formats.split(',') ]
+            formats = [x.replace('*.', '').strip() for x in formats.split(',')]
         self.formats = formats
 
     def ctd_restriction_string(self):
@@ -698,7 +698,6 @@ class ParameterGroup(object):
         else:
             return self.parent.get_lineage(name_only, short_name) + [n]
 
-
     def get_parameters(self, nodes=False):
         """return an iterator over all parameters
         """
@@ -819,9 +818,9 @@ class Parameters(ParameterGroup):
                 idx = cl_arg_list.index(cli_short_param)
 
             cl_arg_kws = {}  # argument processing info passed to argparse in keyword arguments, we build them here
-            if idx >= 0 and idx+1 < len(cl_arg_list) and cl_arg_list[idx+1] in ['true','false']:
+            if idx >= 0 and idx + 1 < len(cl_arg_list) and cl_arg_list[idx + 1] in ['true', 'false']:
                 cl_arg_kws['type'] = str
-            elif param.type is bool or (param.type is str and type(param.restrictions) is _Choices and set(param.restrictions.choices) == set(["true","false"])):  # boolean flags are not followed by a value, only their presence is required
+            elif param.type is bool or (param.type is str and type(param.restrictions) is _Choices and set(param.restrictions.choices) == set(["true", "false"])):  # boolean flags are not followed by a value, only their presence is required
                 cl_arg_kws['action'] = 'store_true'
             else:
                 # we take every argument as string and cast them only later in validate_args() if
@@ -885,6 +884,7 @@ class Parameters(ParameterGroup):
         `cli`: boolean whether or not cli elements should be generated (needed for GenericKNIMENode for example)
         """
         write_ctd(self, out_file, arg_dict, log, cli)
+
 
 class CTDModel(object):
     def __init__(self, name=None, version=None, from_file=None, **kwargs):
@@ -1155,7 +1155,6 @@ def write_ctd(model, out_file, arg_dict=None, log=None, cli=False):
             f.write(xml_content)
     else:  # otherwise we assume it's a writable stream and write into that.
         out_file.write(xml_content)
-
 
 
 def args_from_file(filename):
