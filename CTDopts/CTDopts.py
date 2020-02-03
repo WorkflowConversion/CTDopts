@@ -443,7 +443,7 @@ class Parameter(object):
 
         # same for choices. I'm starting to think it's really unpythonic and we should trust input. TODO
 
-        if self.type == bool:
+        if self.type is bool:
             assert self.is_list is False, "Boolean flag can't be a list type"
             self.required = False  # override whatever we found. Boolean flags can't be required...
             self.default = CAST_BOOLEAN(default)
