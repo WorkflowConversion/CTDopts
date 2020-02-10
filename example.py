@@ -1,7 +1,6 @@
 # or for easier access of certain commonly used module methods
 import datetime
 import pprint
-import pytz
 
 import CTDopts.CTDopts  # once you installed it, it's just CTDopts
 from CTDopts.CTDopts import CTDModel, args_from_file, parse_cl_directives, flatten_dict, override_args, ArgumentRestrictionError
@@ -229,13 +228,13 @@ pretty_print(directives_2)
 
 print("Finally, writing CTDs with logging information, passing a dictionary"
       "with a 'log' keyword, using any or all of the fields shown below.")
-time_start = datetime.datetime.now(pytz.utc).isoformat()
+time_start = datetime.datetime.now(datetime.timezone.utc).isoformat()
 # do stuff
 output = 'Output of my program, however I generated or logged it'
 errors = 'Standard error output of my program, however I caught or redirected them'
 warnings = 'Warnings of my program'
 exitstatus = '1'
-time_finish = datetime.datetime.now(pytz.utc).isoformat()
+time_finish = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
 log = {
     'time_start': time_start,  # make sure to give it a legal XML date string if you can.

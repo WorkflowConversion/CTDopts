@@ -1,0 +1,19 @@
+language: python
+python:
+  - "3.6"
+
+install:
+  - sudo apt-get update
+  - pip install pycodestyle
+#  - pip install lxml ruamel.yaml
+  - cd $TRAVIS_BUILD_DIR
+  - python setup.py install
+
+jobs:
+  include:
+    - stage: "pycodestyle"
+      name: "pycodestyle"
+      script: pycodestyle CTDopts
+    - stage: "run example"
+      name: "run example"
+      script: ls -la && python example.py

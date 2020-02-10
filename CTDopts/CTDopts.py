@@ -928,8 +928,8 @@ class CTDModel(object):
                 self.opt_attribs[tool_opt_attrib] = root.attrib[tool_opt_attrib]
 
         for tool_element in root:
+            # ignoring: cli, logs, relocators. cli and relocators might be useful later.
             if tool_element.tag in ['manual', 'description', 'executableName', 'executablePath']:
-                                    # ignoring: cli, logs, relocators. cli and relocators might be useful later.
                 self.opt_attribs[tool_element.tag] = tool_element.text
 
             if tool_element.tag == 'cli':
