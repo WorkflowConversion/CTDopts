@@ -133,9 +133,9 @@ def override_args(*arg_dicts):
 
     combined_args = override_args(args_from_ctd, args_from_commandline)
     """
-    overridden_args = dict(chain(*(flatten_dict(d).iteritems() for d in arg_dicts)))
+    overridden_args = dict(chain(*(flatten_dict(d).items() for d in arg_dicts)))
     result = {}
-    for keylist, value in overridden_args.iteritems():
+    for keylist, value in overridden_args.items():
         set_nested_key(result, keylist, value)
     return result
 
@@ -640,7 +640,7 @@ class ParameterGroup(object):
         """Registers a child parameter group under a ParameterGroup. Required: `name` string. Optional: `description`
         """
         # TODO assertion if name already exists? It just overrides now, but I'm not sure if allowing this behavior is OK
-        self.parameters[name] = ParameterGroup(name, self, description)
+        self.parameters[name] = ParameterGroup(name, parent=self, description=description)
         return self.parameters[name]
 
     def _get_children(self):
@@ -672,13 +672,13 @@ class ParameterGroup(object):
         :param arg_dict: dafualt values for elements
         :return: list of clielements
         """
-        for arg in self.parameters.itervalues():
+        for arg in self.parameters.values():
             yield arg._cli_node(parent_name=parent_name + "." + self.name, prefix=prefix)
 
     def __repr__(self):
         info = []
         info.append('PARAMETER GROUP %s (' % self.name)
-        for subparam in self.parameters.itervalues():
+        for subparam in self.parameters.values():
             info.append(subparam.__repr__())
         info.append(')')
         return '\n'.join(info)
@@ -755,7 +755,7 @@ class Parameters(ParameterGroup):
         else:
             self.name = name
             self.version = version
-            super(Parameters, self).__init__(name=name, parent=None, node=None, description=None)
+            super(Parameters, self).__init__(name=name, parent=None, node=None, description=kwargs.get("description", ""))
 
         self.opt_attribs['description'] = self.description
 
@@ -775,6 +775,7 @@ class Parameters(ParameterGroup):
         for arg in self.parameters.values():
             n = arg._xml_node(arg_dict)
             one_node.append(n)
+
         return params
 
     def get_lineage(self, name_only=False, short_name=False):
@@ -905,7 +906,7 @@ class CTDModel(object):
             self.version = version
             # TODO: check whether optional attributes in kwargs are all allowed or just ignore the rest?
             self.opt_attribs = kwargs  # description, manual, docurl, category (+executable stuff).
-            self.parameters = ParameterGroup('1', None, 'Parameters of %s' % self.name)  # openMS legacy, top group named "1"
+            self.parameters = Parameters(name=self.name, version=version, **kwargs)
             self.cli = []
 
     def _load_from_file(self, filename):
@@ -1022,7 +1023,7 @@ class CTDModel(object):
                 # boolean values are the only ones that don't get casted correctly with, say, bool('false')
                 typecast = param.type if param.type is not bool else CAST_BOOLEAN
                 try:
-                    validated_value = map(typecast, arg) if param.is_list else typecast(arg)
+                    validated_value = list(map(typecast, arg)) if param.is_list else typecast(arg)
                 except ValueError:  # type casting failed
                     validated_value = arg  # just keep it as a string (or list of strings)
                     if enforce_type:  # but raise a warning or exception depending on enforcement level
