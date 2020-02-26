@@ -47,7 +47,7 @@ class _OutFile(str):
 
 
 # module globals for some common operations (python types to CTD-types back and forth)
-TYPE_TO_CTDTYPE = {int: 'int', float: 'float', str: 'string', bool: 'boolean',
+TYPE_TO_CTDTYPE = {int: 'int', float: 'double', str: 'string', bool: 'bool',
                    _InFile: 'input-file', _OutFile: 'output-file'}
 CTDTYPE_TO_TYPE = {'int': int, 'float': float, 'double': float, 'string': str, 'boolean': bool, 'bool': bool,
                    'input-file': _InFile, 'output-file': _OutFile, int: int, float: float, str: str,
@@ -447,7 +447,6 @@ class Parameter(object):
             assert self.is_list is False, "Boolean flag can't be a list type"
             self.required = False  # override whatever we found. Boolean flags can't be required...
             self.default = CAST_BOOLEAN(default)
-
         # Default value should exist IFF argument is not required.
         # TODO: if we can have optional list arguments they don't have to have a default? (empty list)
         # TODO: CTD Params 1.6.3 have a required value attrib. That's very wrong for parameters that are required.
@@ -564,8 +563,8 @@ class Parameter(object):
             attribs['description'] = self.description
         if self.tags:
             attribs['tags'] = ','.join(self.tags)
-        if self.advanced:
-            attribs['advanced'] = str(self.advanced).lower()
+        attribs['required'] = str(self.required).lower()
+        attribs['advanced'] = str(self.advanced).lower()
 
         # Choices and NumericRange restrictions go in the 'restrictions' attrib, FileFormat has
         # its own attribute 'supported_formats' for whatever historic reason.
@@ -761,14 +760,15 @@ class Parameters(ParameterGroup):
 
     def _xml_node(self, arg_dict):
         params = Element('PARAMETERS', {
-            'version': '1.6.2',
+            'version': "1.7.0",
             'xmlns:xsi': "http://www.w3.org/2001/XMLSchema-instance",
-            'xsi:noNamespaceSchemaLocation': "https://github.com/genericworkflownodes/CTDopts/raw/master/schemas/Param_1_6_2.xsd"
+            'xsi:noNamespaceSchemaLocation': "https://github.com/genericworkflownodes/CTDopts/raw/master/schemas/Param_1_7_0.xsd"
         })
         node = Element("NODE", {"name": self.name, 'description': self.description})
         params.append(node)
 
-        node.append(Element("ITEM", {"name": "version", 'value': self.version, 'type': "string", 'description': "Version of the tool that generated this parameters file.", "required": "false", "advanced": "true"}))
+        if self.version is not None:
+            node.append(Element("ITEM", {"name": "version", 'value': self.version, 'type': "string", 'description': "Version of the tool that generated this parameters file.", "required": "false", "advanced": "true"}))
         one_node = Element("NODE", {"name": "1", 'description': "Instance &apos;1&apos; section for &apos;%s&apos;" % self.name})
         node.append(one_node)
 
@@ -802,6 +802,22 @@ class Parameters(ParameterGroup):
         `get_remaining`. In this case, the method returns a tuple, whose first element is the
         argument dictionary, the second a list of unmatchable command line options.
         """
+
+        class StoreFirst(argparse._StoreAction):
+            """
+            OpenMS command line parser uses the value of the first
+            occurence of an argument. This action does the same
+            (contrary to the default behaviour of the store action) 
+            see also https://github.com/OpenMS/OpenMS/issues/4545
+            """
+            def __init__(self, option_strings, dest, nargs=None, **kwargs):
+                self._seen_args = set()
+                super(StoreFirst, self).__init__(option_strings, dest, nargs, **kwargs)
+            def __call__(self, parser, namespace, values, option_strings=None):
+                if self.dest not in self._seen_args:
+                    self._seen_args.add(self.dest)
+                    setattr(namespace, self.dest, values)
+
         cl_arg_list = cl_args.split() if isinstance(cl_args, str) else cl_args
         # if no arguments are given print help
         if not cl_arg_list:
@@ -822,6 +838,7 @@ class Parameters(ParameterGroup):
             cl_arg_kws = {}  # argument processing info passed to argparse in keyword arguments, we build them here
             if idx >= 0 and idx + 1 < len(cl_arg_list) and cl_arg_list[idx + 1] in ['true', 'false']:
                 cl_arg_kws['type'] = str
+                cl_arg_kws['action'] = StoreFirst
             elif param.type is bool or (param.type is str and type(param.restrictions) is _Choices and set(param.restrictions.choices) == set(["true", "false"])):  # boolean flags are not followed by a value, only their presence is required
                 cl_arg_kws['action'] = 'store_true'
             else:
@@ -829,6 +846,7 @@ class Parameters(ParameterGroup):
                 # explicitly asked for. This is because we don't want to deal with type exceptions
                 # at this stage, and prefer the multi-leveled strictness settings in validate_args()
                 cl_arg_kws['type'] = str
+                cl_arg_kws['action'] = StoreFirst
 
             if param.is_list:
                 # or '+' rather? Should we allow empty lists here? If default is a proper list with elements
@@ -841,12 +859,12 @@ class Parameters(ParameterGroup):
             if param.required and not ignore_required:
                 cl_arg_kws['required'] = True
 
-            # hardcoded 'group:subgroup:param1'
+            # hardcoded 'group:subgroup:param'
             if all(type(a) is not _Null for a in short_lineage):
                 cl_parser.add_argument(cli_short_param, cli_param, **cl_arg_kws)
             else:
                 cl_parser.add_argument(cli_param, **cl_arg_kws)
-
+        
         parsed_args, rest = cl_parser.parse_known_args(cl_arg_list)
         res_args = {}  # OrderedDict()
         for param_name, value in vars(parsed_args).items():
