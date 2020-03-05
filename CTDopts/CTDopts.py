@@ -807,12 +807,13 @@ class Parameters(ParameterGroup):
             """
             OpenMS command line parser uses the value of the first
             occurence of an argument. This action does the same
-            (contrary to the default behaviour of the store action) 
+            (contrary to the default behaviour of the store action)
             see also https://github.com/OpenMS/OpenMS/issues/4545
             """
             def __init__(self, option_strings, dest, nargs=None, **kwargs):
                 self._seen_args = set()
                 super(StoreFirst, self).__init__(option_strings, dest, nargs, **kwargs)
+
             def __call__(self, parser, namespace, values, option_strings=None):
                 if self.dest not in self._seen_args:
                     self._seen_args.add(self.dest)
@@ -864,7 +865,7 @@ class Parameters(ParameterGroup):
                 cl_parser.add_argument(cli_short_param, cli_param, **cl_arg_kws)
             else:
                 cl_parser.add_argument(cli_param, **cl_arg_kws)
-        
+
         parsed_args, rest = cl_parser.parse_known_args(cl_arg_list)
         res_args = {}  # OrderedDict()
         for param_name, value in vars(parsed_args).items():
