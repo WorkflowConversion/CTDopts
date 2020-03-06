@@ -581,8 +581,6 @@ class Parameter(object):
             elif type(value) is list:
                 for d in value:
                     SubElement(top, 'LISTITEM', {'value': str(d)})
-            elif str(value) != "":
-                SubElement(top, 'LISTITEM', {'value': str(value)})
             return top
         else:
             return Element('ITEM', attribs)
