@@ -46,6 +46,15 @@ model.add(
 )
 
 model.add(
+    'output',
+    required=True,
+    type='output-prefix',  # or 'input-prefix'
+    is_list=False,
+    file_formats=['fastq', 'fastq.gz'],  # filename restrictions
+    description='Output directory'
+)
+
+model.add(
     'this_that',
     type=str,
     choices=['this', 'that'],  # controlled vocabulary
@@ -194,7 +203,7 @@ print("So how to deal with command line arguments? If we have a model, we can lo
       "Call CTDModel.parse_cl_args() with either a string of the command line call or a list with the split words. "
       "By default, it will assume a '--' prefix before parameter names, but it can be overridden with prefix='-'."
       "Grouped parameters are expected in --group:subgroup:param_x format.")
-cl_args = model.parse_cl_args('--positive_int 44 --subparams:param_2 5.0 5.5 6.0 --input_files a.fastq b.fastq')
+cl_args = model.parse_cl_args('--positive_int 44 --subparams:param_2 5.0 5.5 6.0 --input_files a.fastq b.fastq --output out_dir/')
 pretty_print(cl_args)
 print()
 # # you can get unmatchable command line arguments with get_remaining=True like:

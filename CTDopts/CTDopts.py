@@ -46,12 +46,27 @@ class _OutFile(str):
     pass
 
 
+class _OutPrefix(str):
+    """Same thing, a dummy class for output-prefix CTD type."""
+    pass
+
+
+class _InPrefix(str):
+    """Same thing, a dummy class for output-prefix CTD type."""
+    pass
+
+
 # module globals for some common operations (python types to CTD-types back and forth)
 TYPE_TO_CTDTYPE = {int: 'int', float: 'double', str: 'string', bool: 'bool',
-                   _InFile: 'input-file', _OutFile: 'output-file'}
-CTDTYPE_TO_TYPE = {'int': int, 'float': float, 'double': float, 'string': str, 'boolean': bool, 'bool': bool,
-                   'input-file': _InFile, 'output-file': _OutFile, int: int, float: float, str: str,
-                   bool: bool, _InFile: _InFile, _OutFile: _OutFile}
+                   _InFile: 'input-file', _OutFile: 'output-file',
+                   _OutPrefix: 'output-prefix', _InPrefix: 'input-prefix'}
+CTDTYPE_TO_TYPE = {'int': int, 'float': float, 'double': float, 'string': str,
+                   'boolean': bool, 'bool': bool,
+                   'input-file': _InFile, 'output-file': _OutFile,
+                   'output-prefix': _OutPrefix, 'input-prefix': _InPrefix,
+                   int: int, float: float, str: str,
+                   bool: bool, _InFile: _InFile, _OutFile: _OutFile,
+                   _OutPrefix: _OutPrefix, _InPrefix: _InPrefix}
 PARAM_DEFAULTS = {'advanced': False, 'required': False, 'restrictions': None, 'description': None,
                   'supported_formats': None, 'tags': None, 'position': None}  # unused. TODO.
 
