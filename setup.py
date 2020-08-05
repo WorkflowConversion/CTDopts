@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='CTDopts',
-    version='1.3',
+    version='1.4',
     packages=['CTDopts'],
     url='https://github.com/genericworkflownodes/CTDopts',
     license='',
