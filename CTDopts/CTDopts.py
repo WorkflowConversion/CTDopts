@@ -1222,8 +1222,9 @@ def args_from_file(filename):
             if 'value' in element.attrib:
                 base[element.attrib['name']] = element.attrib['value']
         elif element.tag == 'ITEMLIST':
-            if element.getchildren():
-                base[element.attrib['name']] = [listitem.attrib['value'] for listitem in element]
+            items = list(element)
+            if items:
+                base[element.attrib['name']] = [listitem.attrib['value'] for listitem in items]
 
     root = parse(filename).getroot()
     param_root = root if root.tag == 'PARAMETERS' else root.find('PARAMETERS')
