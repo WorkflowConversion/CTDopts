@@ -7,7 +7,7 @@ Please check out [example.py](example.py) for an overview of CTDopt's features.
 `CTDopts` is available in the Anaconda Cloud under the `workflowconversion` channel. You can install the latest stable release using `conda` by executing the following command:
 
 ```sh
-$ conda install --channel workflowconversion ctdopts
+$ conda install --channel WorkflowConversionOrg ctdopts
 ```
     
 Or, if you want the latest, possibly unstable, version, you can clone the `CTDopts` repository from https://github.com/WorkflowConversion/CTDopts.
