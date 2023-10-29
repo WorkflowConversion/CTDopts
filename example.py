@@ -2,8 +2,7 @@
 import datetime
 import pprint
 
-import CTDopts.CTDopts  # once you installed it, it's just CTDopts
-from CTDopts.CTDopts import CTDModel, args_from_file, parse_cl_directives, flatten_dict, override_args, ArgumentRestrictionError
+from CTDopts import CTDModel, args_from_file, parse_cl_directives, flatten_dict, override_args, ArgumentRestrictionError
 
 
 # let's set up a PrettyPrinter so nested dictionaries are easier to follow later
