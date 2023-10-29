@@ -1272,7 +1272,9 @@ class CTDModel(object):
                         raise ArgumentRestrictionError(param, validated_value)
 
                 set_nested_key(validated_args, lineage, validated_value)
-            except KeyError:  # argument was not found, checking whether required and using defaults if not
+            except (
+                KeyError
+            ):  # argument was not found, checking whether required and using defaults if not
                 if param.required:
                     if not enforce_required:
                         continue  # this argument will be missing from the dict as required fields have no default value
