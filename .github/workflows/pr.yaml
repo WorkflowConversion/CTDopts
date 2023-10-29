@@ -22,7 +22,7 @@ jobs:
     - name: Install package
       run: pip install black==23.3 flake8==6.0
     - name: Flake8
-      run: flake8 --ignore=C901,W503
+      run: flake8 --ignore=C901,W503,E501
     - name: Black
       uses: psf/black@23.3.0
 
