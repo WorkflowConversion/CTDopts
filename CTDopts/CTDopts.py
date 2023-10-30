@@ -1,10 +1,11 @@
 import argparse
-from itertools import chain
 import collections
 import collections.abc
+import logging
+from itertools import chain
 from xml.etree.ElementTree import Element, SubElement, tostring, parse
 from xml.dom.minidom import parseString
-import warnings
+
 
 # dummy classes for input-file and output-file CTD types.
 
@@ -224,7 +225,7 @@ def _translate_ctd_to_param(attribs):
         else:
             # there is nothing we can split with... so we will assume that this is a restriction of one possible
             # value... anyway, the user should be warned about it
-            warnings.warn(
+            logging.warning(
                 "Restriction [%s] of a single value found for parameter [%s]. \n"
                 "Restrictions should be comma separated value lists or colon separated values to "
                 "indicate numeric ranges (e.g., 'true,false', '0:14', '1:', ':2.8')\n"
@@ -1247,7 +1248,7 @@ class CTDModel(object):
                         enforce_type
                     ):  # but raise a warning or exception depending on enforcement level
                         if enforce_type == 1:
-                            warnings.warn(
+                            logging.warning(
                                 "Argument %s is of wrong type. Expected %s, got: %s"
                                 % (":".join(lineage), TYPE_TO_CTDTYPE[param.type], arg)
                             )
@@ -1260,7 +1261,7 @@ class CTDModel(object):
                     and not param.restrictions.check(validated_value)
                 ):
                     if enforce_restrictions == 1:
-                        warnings.warn(
+                        logging.warning(
                             "Argument restrictions for %s violated. Restriction: %s. Value: %s"
                             % (
                                 ":".join(lineage),
@@ -1279,7 +1280,7 @@ class CTDModel(object):
                     if not enforce_required:
                         continue  # this argument will be missing from the dict as required fields have no default value
                     elif enforce_required == 1:
-                        warnings.warn(
+                        logging.warning(
                             "Required argument %s missing" % ":".join(lineage),
                             UserWarning,
                         )
