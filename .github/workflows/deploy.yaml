@@ -2,12 +2,12 @@ name: Release (by Tag Push)
 
 on:
   workflow_dispatch:
-  push:
-    tags:
-      - '*'
+  release:
+    type: [published]
 
 jobs:
   pypi-publish:
+    if: "!github.event.release.prerelease"
     name: Upload release to PyPI
     runs-on: ubuntu-latest
     environment:
