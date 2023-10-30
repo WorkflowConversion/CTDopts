@@ -1,9 +1,10 @@
 import argparse
-from itertools import chain
 import collections
 import collections.abc
+from itertools import chain
 from xml.etree.ElementTree import Element, SubElement, tostring, parse
 from xml.dom.minidom import parseString
+
 import warnings
 
 # dummy classes for input-file and output-file CTD types.
