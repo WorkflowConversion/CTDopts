@@ -13,6 +13,7 @@ class _ASingleton(type):
     """
     A metaclass for singletons
     """
+
     _instances = {}
 
     def __call__(cls, *args, **kwargs):
@@ -27,6 +28,7 @@ class _Null(object):
     """
     A null singleton for non-initialized fields to distinguish between initialized=None and non-initialized members
     """
+
     __metaclass__ = _ASingleton
 
     def __str__(self):
@@ -39,37 +41,68 @@ class _InFile(str):
     classes in a later release. Otherwise, it's equivalent to str with the information that we're
     dealing with a file argument.
     """
+
     pass
 
 
 class _OutFile(str):
     """Same thing, a dummy class for output-file CTD type."""
+
     pass
 
 
 class _OutPrefix(str):
     """Same thing, a dummy class for output-prefix CTD type."""
+
     pass
 
 
 class _InPrefix(str):
     """Same thing, a dummy class for output-prefix CTD type."""
+
     pass
 
 
 # module globals for some common operations (python types to CTD-types back and forth)
-TYPE_TO_CTDTYPE = {int: 'int', float: 'double', str: 'string', bool: 'bool',
-                   _InFile: 'input-file', _OutFile: 'output-file',
-                   _OutPrefix: 'output-prefix', _InPrefix: 'input-prefix'}
-CTDTYPE_TO_TYPE = {'int': int, 'float': float, 'double': float, 'string': str,
-                   'boolean': bool, 'bool': bool,
-                   'input-file': _InFile, 'output-file': _OutFile,
-                   'output-prefix': _OutPrefix, 'input-prefix': _InPrefix,
-                   int: int, float: float, str: str,
-                   bool: bool, _InFile: _InFile, _OutFile: _OutFile,
-                   _OutPrefix: _OutPrefix, _InPrefix: _InPrefix}
-PARAM_DEFAULTS = {'advanced': False, 'required': False, 'restrictions': None, 'description': None,
-                  'supported_formats': None, 'tags': None, 'position': None}  # unused. TODO.
+TYPE_TO_CTDTYPE = {
+    int: "int",
+    float: "double",
+    str: "string",
+    bool: "bool",
+    _InFile: "input-file",
+    _OutFile: "output-file",
+    _OutPrefix: "output-prefix",
+    _InPrefix: "input-prefix",
+}
+CTDTYPE_TO_TYPE = {
+    "int": int,
+    "float": float,
+    "double": float,
+    "string": str,
+    "boolean": bool,
+    "bool": bool,
+    "input-file": _InFile,
+    "output-file": _OutFile,
+    "output-prefix": _OutPrefix,
+    "input-prefix": _InPrefix,
+    int: int,
+    float: float,
+    str: str,
+    bool: bool,
+    _InFile: _InFile,
+    _OutFile: _OutFile,
+    _OutPrefix: _OutPrefix,
+    _InPrefix: _InPrefix,
+}
+PARAM_DEFAULTS = {
+    "advanced": False,
+    "required": False,
+    "restrictions": None,
+    "description": None,
+    "supported_formats": None,
+    "tags": None,
+    "position": None,
+}  # unused. TODO.
 
 
 def CAST_BOOLEAN(x):
@@ -80,7 +113,7 @@ def CAST_BOOLEAN(x):
     if not isinstance(x, str):
         return bool(x)
     else:
-        return x in ('true', 'True', '1')
+        return x in ("true", "True", "1")
 
 
 # instead of using None or _Null, we define non-present 'position' attribute values as -1
@@ -131,14 +164,16 @@ def flatten_dict(arg_dict, as_string=False):
         # recursive closure that accesses and modifies result dict and registers nested elements
         # as it encounters them
         for key, value in subgroup.items():
-            if isinstance(value, collections.abc.Mapping):  # collections.Mapping instead of dict for generality
+            if isinstance(
+                value, collections.abc.Mapping
+            ):  # collections.Mapping instead of dict for generality
                 flattener(value, level + [key])
             else:
                 result[tuple(level + [key])] = value
 
     flattener(arg_dict, [])
     if as_string:
-        return {':'.join(keylist): value for keylist, value in result.items()}
+        return {":".join(keylist): value for keylist, value in result.items()}
     else:
         return result
 
@@ -164,29 +199,39 @@ def _translate_ctd_to_param(attribs):
     """
 
     # right now value is a required field, but it shouldn't be for required parameters.
-    if 'value' in attribs:  # TODO 1_6_3, this line will be deleted.
-        attribs['default'] = attribs.pop('value')  # rename 'value' to 'default' (Parameter constructor takes 'default')
+    if "value" in attribs:  # TODO 1_6_3, this line will be deleted.
+        attribs["default"] = attribs.pop(
+            "value"
+        )  # rename 'value' to 'default' (Parameter constructor takes 'default')
 
-    if 'supported_formats' in attribs:  # supported_formats in CTD xml is called file_formats in CTDopts
-        attribs['file_formats'] = attribs.pop('supported_formats')  # rename that attribute too
+    if (
+        "supported_formats" in attribs
+    ):  # supported_formats in CTD xml is called file_formats in CTDopts
+        attribs["file_formats"] = attribs.pop(
+            "supported_formats"
+        )  # rename that attribute too
 
-    if 'restrictions' in attribs:  # find out whether restrictions are choices ('this,that') or numeric range ('3:10')
-        if ',' in attribs['restrictions']:
-            attribs['choices'] = attribs['restrictions'].split(',')
-        elif ':' in attribs['restrictions']:
-            n_min, n_max = attribs['restrictions'].split(':')
-            n_min = None if n_min == '' else n_min
-            n_max = None if n_max == '' else n_max
-            attribs['num_range'] = (n_min, n_max)
+    if (
+        "restrictions" in attribs
+    ):  # find out whether restrictions are choices ('this,that') or numeric range ('3:10')
+        if "," in attribs["restrictions"]:
+            attribs["choices"] = attribs["restrictions"].split(",")
+        elif ":" in attribs["restrictions"]:
+            n_min, n_max = attribs["restrictions"].split(":")
+            n_min = None if n_min == "" else n_min
+            n_max = None if n_max == "" else n_max
+            attribs["num_range"] = (n_min, n_max)
         else:
             # there is nothing we can split with... so we will assume that this is a restriction of one possible
             # value... anyway, the user should be warned about it
-            warnings.warn("Restriction [%s] of a single value found for parameter [%s]. \n"
-                          "Restrictions should be comma separated value lists or colon separated values to "
-                          "indicate numeric ranges (e.g., 'true,false', '0:14', '1:', ':2.8')\n"
-                          "Will use a restriction with one possible value of choice." %
-                          (attribs['restrictions'], attribs['name']))
-            attribs['choices'] = [attribs['restrictions']]
+            warnings.warn(
+                "Restriction [%s] of a single value found for parameter [%s]. \n"
+                "Restrictions should be comma separated value lists or colon separated values to "
+                "indicate numeric ranges (e.g., 'true,false', '0:14', '1:', ':2.8')\n"
+                "Will use a restriction with one possible value of choice."
+                % (attribs["restrictions"], attribs["name"])
+            )
+            attribs["choices"] = [attribs["restrictions"]]
 
     # TODO: advanced. Should it be stored as a tag, or should we extend Parameter class to have that attribute?
     # what we can do is keep it as a tag in the model, and change Parameter._xml_node() so that if it finds
@@ -195,57 +240,63 @@ def _translate_ctd_to_param(attribs):
 
 
 class ArgumentError(Exception):
-    """Base exception class for argument related problems.
-    """
+    """Base exception class for argument related problems."""
+
     def __init__(self, parameter):
         self.parameter = parameter
-        self.param_name = ':'.join(self.parameter.get_lineage(name_only=True))
+        self.param_name = ":".join(self.parameter.get_lineage(name_only=True))
 
 
 class ArgumentMissingError(ArgumentError):
-    """Exception for missing required arguments.
-    """
+    """Exception for missing required arguments."""
+
     def __init__(self, parameter):
         super(ArgumentMissingError, self).__init__(parameter)
 
     def __str__(self):
-        return 'Required argument %s missing' % self.param_name
+        return "Required argument %s missing" % self.param_name
 
 
 class ArgumentTypeError(ArgumentError):
-    """Exception for arguments that can't be casted to the type defined in the model.
-    """
+    """Exception for arguments that can't be casted to the type defined in the model."""
+
     def __init__(self, parameter, value):
         super(ArgumentTypeError, self).__init__(parameter)
         self.value = value
 
     def __str__(self):
         return "Argument %s is of wrong type. Expected: %s, got %s" % (
-            self.param_name, TYPE_TO_CTDTYPE[self.parameter.type], self.value)
+            self.param_name,
+            TYPE_TO_CTDTYPE[self.parameter.type],
+            self.value,
+        )
 
 
 class ArgumentRestrictionError(ArgumentError):
-    """Exception for arguments violating numeric, file format or controlled vocabulary restrictions.
-    """
+    """Exception for arguments violating numeric, file format or controlled vocabulary restrictions."""
+
     def __init__(self, parameter, value):
         super(ArgumentRestrictionError, self).__init__(parameter)
         self.value = value
 
     def __str__(self):
-        return 'Argument restrictions for %s failed. Restriction: %s. Value: %s' % (
-            self.param_name, self.parameter.restrictions.ctd_restriction_string(), self.value)
+        return "Argument restrictions for %s failed. Restriction: %s. Value: %s" % (
+            self.param_name,
+            self.parameter.restrictions.ctd_restriction_string(),
+            self.value,
+        )
 
 
 class ModelError(Exception):
-    """Exception for errors related to CTDModel building
-    """
+    """Exception for errors related to CTDModel building"""
+
     def __init__(self):
         super(ModelError, self).__init__()
 
 
 class ModelTypeError(ModelError):
-    """Exception if file of wrong type is provided
-    """
+    """Exception if file of wrong type is provided"""
+
     def __init__(self, message):
         super(ModelTypeError, self).__init__()
         self.message = message
@@ -258,8 +309,8 @@ class ModelTypeError(ModelError):
 
 
 class ModelParsingError(ModelError):
-    """Exception for errors related to CTD parsing
-    """
+    """Exception for errors related to CTD parsing"""
+
     def __init__(self, message):
         super(ModelParsingError, self).__init__()
         self.message = message
@@ -272,14 +323,17 @@ class ModelParsingError(ModelError):
 
 
 class UnsupportedTypeError(ModelError):
-    """Exception for attempting to use unsupported types in the model
-    """
+    """Exception for attempting to use unsupported types in the model"""
+
     def __init__(self, wrong_type):
         super(UnsupportedTypeError, self).__init__()
         self.wrong_type = wrong_type
 
     def __str__(self):
-        return 'Unsupported type encountered during model construction: %s' % self.wrong_type
+        return (
+            "Unsupported type encountered during model construction: %s"
+            % self.wrong_type
+        )
 
 
 class DefaultError(ModelError):
@@ -292,8 +346,8 @@ class DefaultError(ModelError):
 
 
 class _Restriction(object):
-    """Superclass for restriction classes (numeric, file format, controlled vocabulary).
-    """
+    """Superclass for restriction classes (numeric, file format, controlled vocabulary)."""
+
     def __init__(self):
         pass
 
@@ -304,7 +358,9 @@ class _Restriction(object):
         """Checks whether `value` satisfies the restriction conitions. For list parameters it checks
         every element individually.
         """
-        if isinstance(value, list):  # check every element of list (in case of list parameters)
+        if isinstance(
+            value, list
+        ):  # check every element of list (in case of list parameters)
             return all((self._single_check(v) for v in value))
         else:
             return self._single_check(value)
@@ -314,6 +370,7 @@ class _NumericRange(_Restriction):
     """Class for numeric range restrictions. Stores valid numeric ranges, checks values against
     them and outputs CTD restrictions attribute strings.
     """
+
     def __init__(self, n_type, n_min=None, n_max=None):
         super(_NumericRange, self).__init__()
         self.n_type = n_type
@@ -321,9 +378,9 @@ class _NumericRange(_Restriction):
         self.n_max = self.n_type(n_max) if n_max is not None else None
 
     def ctd_restriction_string(self):
-        n_min = str(self.n_min) if self.n_min is not None else ''
-        n_max = str(self.n_max) if self.n_max is not None else ''
-        return '%s:%s' % (n_min, n_max)
+        n_min = str(self.n_min) if self.n_min is not None else ""
+        n_max = str(self.n_max) if self.n_max is not None else ""
+        return "%s:%s" % (n_min, n_max)
 
     def _single_check(self, value):
         if self.n_min is not None and value < self.n_min:
@@ -334,54 +391,59 @@ class _NumericRange(_Restriction):
             return True
 
     def __repr__(self):
-        return 'numeric range: %s to %s' % (self.n_min, self.n_max)
+        return "numeric range: %s to %s" % (self.n_min, self.n_max)
 
 
 class _FileFormat(_Restriction):
     """Class for file format restrictions. Stores valid file formats, checks filenames against them
     and outputs CTD supported_formats attribute strings.
     """
+
     def __init__(self, formats):
         super(_FileFormat, self).__init__()
-        if isinstance(formats, str):  # to handle ['txt', 'csv', 'tsv'] and '*.txt,*.csv,*.tsv'
-            formats = [x.replace('*.', '').strip() for x in formats.split(',')]
+        if isinstance(
+            formats, str
+        ):  # to handle ['txt', 'csv', 'tsv'] and '*.txt,*.csv,*.tsv'
+            formats = [x.replace("*.", "").strip() for x in formats.split(",")]
         self.formats = formats
 
     def ctd_restriction_string(self):
-        return ','.join(('*.' + f for f in self.formats))
+        return ",".join(("*." + f for f in self.formats))
 
     def _single_check(self, value):
         for f in self.formats:
-            if value.endswith('.' + f):
+            if value.endswith("." + f):
                 return True
         return False
 
     def __repr__(self):
-        return 'file formats: %s' % (', '.join(self.formats))
+        return "file formats: %s" % (", ".join(self.formats))
 
 
 class _Choices(_Restriction):
     """Class for controlled vocabulary restrictions. Stores controlled vocabulary elements, checks
     values against them and outputs CTD restrictions attribute strings.
     """
+
     def __init__(self, choices):
         super(_Choices, self).__init__()
-        if isinstance(choices, str):  # If it actually has to run, a user is screwing around...
-            choices = choices.replace(', ', ',').split(',')
+        if isinstance(
+            choices, str
+        ):  # If it actually has to run, a user is screwing around...
+            choices = choices.replace(", ", ",").split(",")
         self.choices = choices
 
     def _single_check(self, value):
         return value in self.choices
 
     def ctd_restriction_string(self):
-        return ','.join(self.choices)
+        return ",".join(self.choices)
 
     def __repr__(self):
-        return 'choices: %s' % (', '.join(map(str, self.choices)))
+        return "choices: %s" % (", ".join(map(str, self.choices)))
 
 
 class Parameter(object):
-
     def __init__(self, name=None, parent=None, node=None, **kwargs):
         if node is None:
             kwargs["name"] = name
@@ -391,13 +453,15 @@ class Parameter(object):
 
     def _init_from_node(self, parent, nd):
         setup = _translate_ctd_to_param(dict(nd.attrib))
-        assert nd.tag in ["ITEM", "ITEMLIST"], "Tried to init Parameter from %s" % nd.tag
-        if nd.tag == 'ITEMLIST':
+        assert nd.tag in ["ITEM", "ITEMLIST"], (
+            "Tried to init Parameter from %s" % nd.tag
+        )
+        if nd.tag == "ITEMLIST":
             if len(nd) > 0:
-                setup['default'] = [listitem.attrib['value'] for listitem in nd]
+                setup["default"] = [listitem.attrib["value"] for listitem in nd]
             else:
-                setup['default'] = []
-            setup['is_list'] = True
+                setup["default"] = []
+            setup["is_list"] = True
         self._init_from_kwargs(parent, **setup)
 
     def _init_from_kwargs(self, parent, **kwargs):
@@ -420,22 +484,26 @@ class Parameter(object):
         assert "name" in kwargs, "Parameter initialisation without name"
         self.name = kwargs["name"]
         self.parent = parent
-        self.short_name = kwargs.get('short_name', _Null())
+        self.short_name = kwargs.get("short_name", _Null())
         try:
-            self.type = CTDTYPE_TO_TYPE[kwargs.get('type', str)]
+            self.type = CTDTYPE_TO_TYPE[kwargs.get("type", str)]
         except KeyError:
-            raise UnsupportedTypeError(kwargs.get('type'))
+            raise UnsupportedTypeError(kwargs.get("type"))
 
-        self.tags = kwargs.get('tags', [])
-        if isinstance(self.tags, str):  # so that tags can be passed as ['tag1', 'tag2'] or 'tag1,tag2'
-            self.tags = filter(bool, self.tags.split(','))  # so an empty string doesn't produce ['']
-        self.required = CAST_BOOLEAN(kwargs.get('required', False))
-        self.is_list = CAST_BOOLEAN(kwargs.get('is_list', False))
-        self.description = kwargs.get('description', None)
-        self.advanced = CAST_BOOLEAN(kwargs.get('advanced', False))
-        self.position = int(kwargs.get('position', str(NO_POSITION)))
+        self.tags = kwargs.get("tags", [])
+        if isinstance(
+            self.tags, str
+        ):  # so that tags can be passed as ['tag1', 'tag2'] or 'tag1,tag2'
+            self.tags = filter(
+                bool, self.tags.split(",")
+            )  # so an empty string doesn't produce ['']
+        self.required = CAST_BOOLEAN(kwargs.get("required", False))
+        self.is_list = CAST_BOOLEAN(kwargs.get("is_list", False))
+        self.description = kwargs.get("description", None)
+        self.advanced = CAST_BOOLEAN(kwargs.get("advanced", False))
+        self.position = int(kwargs.get("position", str(NO_POSITION)))
 
-        default = kwargs.get('default', _Null())
+        default = kwargs.get("default", _Null())
 
         self._validate_numerical_defaults(default)
 
@@ -443,7 +511,7 @@ class Parameter(object):
         # So every time we build a model from a CTD file, we find at least a default='' or default=[]
         # for every parameter. This should change soon, but for the time being, we have to get around this
         # and disregard such default attributes. The below two lines will be deleted after fixing 1_6_3.
-        if default == '' or (self.is_list and default == []):
+        if default == "" or (self.is_list and default == []):
             default = _Null()
 
         # enforce that default is the correct type if exists. Elementwise for lists
@@ -461,7 +529,9 @@ class Parameter(object):
 
         if self.type is bool:
             assert self.is_list is False, "Boolean flag can't be a list type"
-            self.required = False  # override whatever we found. Boolean flags can't be required...
+            self.required = (
+                False  # override whatever we found. Boolean flags can't be required...
+            )
             self.default = CAST_BOOLEAN(default)
         # Default value should exist IFF argument is not required.
         # TODO: if we can have optional list arguments they don't have to have a default? (empty list)
@@ -479,17 +549,19 @@ class Parameter(object):
         #     assert self.default is not None, ('Optional field `%s` has no default value' % self.name)
 
         self.restrictions = None
-        if 'num_range' in kwargs:
+        if "num_range" in kwargs:
             try:
-                self.restrictions = _NumericRange(self.type, *kwargs['num_range'])
+                self.restrictions = _NumericRange(self.type, *kwargs["num_range"])
             except ValueError:
-                num_range = kwargs['num_range']
-                raise ModelParsingError("Provided range [%s, %s] is not of type %s" %
-                                        (num_range[0], num_range[1], self.type))
-        elif 'choices' in kwargs:
-            self.restrictions = _Choices(list(map(self.type, kwargs['choices'])))
-        elif 'file_formats' in kwargs:
-            self.restrictions = _FileFormat(kwargs['file_formats'])
+                num_range = kwargs["num_range"]
+                raise ModelParsingError(
+                    "Provided range [%s, %s] is not of type %s"
+                    % (num_range[0], num_range[1], self.type)
+                )
+        elif "choices" in kwargs:
+            self.restrictions = _Choices(list(map(self.type, kwargs["choices"])))
+        elif "file_formats" in kwargs:
+            self.restrictions = _FileFormat(kwargs["file_formats"])
 
     # perform some basic validation on the provided default values...
     # an empty string IS NOT a float/int!
@@ -513,11 +585,15 @@ class Parameter(object):
                         errors_so_far.append(default_to_validate)
 
                 if len(errors_so_far) > 0:
-                    raise ModelParsingError("Invalid default value(s) provided for parameter %(name)s of type %(type)s:"
-                                            " '%(default)s'"
-                                            % {"name": self.name,
-                                               "type": self.type,
-                                               "default": ', '.join(map(str, errors_so_far))})
+                    raise ModelParsingError(
+                        "Invalid default value(s) provided for parameter %(name)s of type %(type)s:"
+                        " '%(default)s'"
+                        % {
+                            "name": self.name,
+                            "type": self.type,
+                            "default": ", ".join(map(str, errors_so_far)),
+                        }
+                    )
 
     def get_lineage(self, name_only=False, short_name=False):
         """Returns a list of zero or more ParameterGroup objects plus this Parameter object at the end,
@@ -536,27 +612,36 @@ class Parameter(object):
             return self.parent.get_lineage(name_only, short_name) + [n]
 
     def get_parameters(self, nodes=False):
-        """return an iterator over all parameters
-        """
+        """return an iterator over all parameters"""
         yield self
 
     def __repr__(self):
         info = []
-        info.append('PARAMETER %s%s' % (self.name, ' (required)' if self.required else ''))
-        info.append('  type: %s%s%s' % ('list of ' if self.is_list else '', TYPE_TO_CTDTYPE[self.type],
-                                        's' if self.is_list else ''))
+        info.append(
+            "PARAMETER %s%s" % (self.name, " (required)" if self.required else "")
+        )
+        info.append(
+            "  type: %s%s%s"
+            % (
+                "list of " if self.is_list else "",
+                TYPE_TO_CTDTYPE[self.type],
+                "s" if self.is_list else "",
+            )
+        )
         if self.default:
-            info.append('  default: %s' % self.default)
+            info.append("  default: %s" % self.default)
         if self.tags:
-            info.append('  tags: %s' % ', '.join(self.tags))
+            info.append("  tags: %s" % ", ".join(self.tags))
         if self.restrictions:
-            info.append('  restrictions on %s' % self.restrictions)
+            info.append("  restrictions on %s" % self.restrictions)
         if self.description:
-            info.append('  description: %s' % self.description)
-        return '\n'.join(info)
+            info.append("  description: %s" % self.description)
+        return "\n".join(info)
 
     def _xml_node(self, arg_dict=None):
-        if arg_dict is not None:  # if we call this function with an argument dict, get value from there
+        if (
+            arg_dict is not None
+        ):  # if we call this function with an argument dict, get value from there
             try:
                 value = get_nested_key(arg_dict, self.get_lineage(name_only=True))
             except KeyError:
@@ -566,45 +651,55 @@ class Parameter(object):
         # XML attributes to be created (depending on whether they are needed or not):
         # name, value, type, description, tags, restrictions, supported_formats
 
-        attribs = collections.OrderedDict()  # LXML keeps the order, ElemenTree doesn't. We use ElementTree though.
-        attribs['name'] = self.name
+        attribs = (
+            collections.OrderedDict()
+        )  # LXML keeps the order, ElemenTree doesn't. We use ElementTree though.
+        attribs["name"] = self.name
         if not self.is_list:  # we'll deal with list parameters later, now only normal:
             # TODO: once Param_1_6_3.xsd gets fixed, we won't have to set an empty value='' attrib.
             # but right now value is a required attribute.
-            attribs['value'] = str(value)
-            if self.type is bool or type(value) is bool:  # for booleans str(True) returns 'True' but the XS standard is lowercase
-                attribs['value'] = 'true' if value else 'false'
-        attribs['type'] = TYPE_TO_CTDTYPE[self.type]
+            attribs["value"] = str(value)
+            if (
+                self.type is bool or type(value) is bool
+            ):  # for booleans str(True) returns 'True' but the XS standard is lowercase
+                attribs["value"] = "true" if value else "false"
+        attribs["type"] = TYPE_TO_CTDTYPE[self.type]
         if self.description:
-            attribs['description'] = self.description
+            attribs["description"] = self.description
         if self.tags:
-            attribs['tags'] = ','.join(self.tags)
-        attribs['required'] = str(self.required).lower()
-        attribs['advanced'] = str(self.advanced).lower()
+            attribs["tags"] = ",".join(self.tags)
+        attribs["required"] = str(self.required).lower()
+        attribs["advanced"] = str(self.advanced).lower()
 
         # Choices and NumericRange restrictions go in the 'restrictions' attrib, FileFormat has
         # its own attribute 'supported_formats' for whatever historic reason.
-        if isinstance(self.restrictions, _Choices) or isinstance(self.restrictions, _NumericRange):
-            attribs['restrictions'] = self.restrictions.ctd_restriction_string()
+        if isinstance(self.restrictions, _Choices) or isinstance(
+            self.restrictions, _NumericRange
+        ):
+            attribs["restrictions"] = self.restrictions.ctd_restriction_string()
         elif isinstance(self.restrictions, _FileFormat):
-            attribs['supported_formats'] = self.restrictions.ctd_restriction_string()
+            attribs["supported_formats"] = self.restrictions.ctd_restriction_string()
 
         if self.is_list:  # and now list parameters
-            top = Element('ITEMLIST', attribs)
+            top = Element("ITEMLIST", attribs)
             # (lzimmermann) I guess _Null has to be exluded here, too
             if value is None or type(value) is _Null:
                 pass
             elif type(value) is list:
                 for d in value:
-                    SubElement(top, 'LISTITEM', {'value': str(d)})
+                    SubElement(top, "LISTITEM", {"value": str(d)})
             return top
         else:
-            return Element('ITEM', attribs)
+            return Element("ITEM", attribs)
 
-    def _cli_node(self, parent_name, prefix='--'):
+    def _cli_node(self, parent_name, prefix="--"):
         lineage = self.get_lineage(name_only=True)
-        top_node = Element('clielement', {"optionIdentifier": prefix + ':'.join(lineage)})
-        SubElement(top_node, 'mapping', {"referenceName": parent_name + "." + self.name})
+        top_node = Element(
+            "clielement", {"optionIdentifier": prefix + ":".join(lineage)}
+        )
+        SubElement(
+            top_node, "mapping", {"referenceName": parent_name + "." + self.name}
+        )
         return top_node
 
     def is_positional(self):
@@ -620,15 +715,15 @@ class ParameterGroup(object):
         if node is None:
             return
 
-        validate_contains_keys(node.attrib, ['name'], 'NODE')
-        self.name = node.attrib['name']
+        validate_contains_keys(node.attrib, ["name"], "NODE")
+        self.name = node.attrib["name"]
         if "description" in node.attrib:
-            self.description = node.attrib['description']
+            self.description = node.attrib["description"]
         for c in node:
-            if c.tag == 'NODE':
-                self.parameters[c.attrib['name']] = ParameterGroup(parent=self, node=c)
+            if c.tag == "NODE":
+                self.parameters[c.attrib["name"]] = ParameterGroup(parent=self, node=c)
             elif c.tag in ["ITEMLIST", "ITEM"]:
-                self.parameters[c.attrib['name']] = Parameter(parent=self, node=c)
+                self.parameters[c.attrib["name"]] = Parameter(parent=self, node=c)
 
     def add(self, name, **kwargs):
         """Registers a parameter in a ParameterGroup. Required: `name` string.
@@ -650,10 +745,11 @@ class ParameterGroup(object):
         return self.parameters[name]
 
     def add_group(self, name, description=None):
-        """Registers a child parameter group under a ParameterGroup. Required: `name` string. Optional: `description`
-        """
+        """Registers a child parameter group under a ParameterGroup. Required: `name` string. Optional: `description`"""
         # TODO assertion if name already exists? It just overrides now, but I'm not sure if allowing this behavior is OK
-        self.parameters[name] = ParameterGroup(name, parent=self, description=description)
+        self.parameters[name] = ParameterGroup(
+            name, parent=self, description=description
+        )
         return self.parameters[name]
 
     def _get_children(self):
@@ -666,11 +762,11 @@ class ParameterGroup(object):
         return children
 
     def _xml_node(self, arg_dict=None):
-        xml_attribs = {'name': self.name}
+        xml_attribs = {"name": self.name}
         if self.description:
-            xml_attribs['description'] = self.description
+            xml_attribs["description"] = self.description
 
-        top = Element('NODE', xml_attribs)
+        top = Element("NODE", xml_attribs)
         # TODO: if a Parameter comes after an ParameterGroup, the CTD won't validate. BTW, that should be changed.
         # Of course this should never happen if the argument tree is built properly but it would be
         # nice to take care of it if a user happens to randomly define his arguments and groups.
@@ -679,22 +775,24 @@ class ParameterGroup(object):
             top.append(arg._xml_node(arg_dict))
         return top
 
-    def _cli_node(self, parent_name="", prefix='--'):
+    def _cli_node(self, parent_name="", prefix="--"):
         """
         Generates a list of clielements of that group
         :param arg_dict: dafualt values for elements
         :return: list of clielements
         """
         for arg in self.parameters.values():
-            yield arg._cli_node(parent_name=parent_name + "." + self.name, prefix=prefix)
+            yield arg._cli_node(
+                parent_name=parent_name + "." + self.name, prefix=prefix
+            )
 
     def __repr__(self):
         info = []
-        info.append('PARAMETER GROUP %s (' % self.name)
+        info.append("PARAMETER GROUP %s (" % self.name)
         for subparam in self.parameters.values():
             info.append(subparam.__repr__())
-        info.append(')')
-        return '\n'.join(info)
+        info.append(")")
+        return "\n".join(info)
 
     def get_lineage(self, name_only=False, short_name=False):
         """Returns a list of zero or more ParameterGroup objects plus this one object at the end,
@@ -713,8 +811,7 @@ class ParameterGroup(object):
             return self.parent.get_lineage(name_only, short_name) + [n]
 
     def get_parameters(self, nodes=False):
-        """return an iterator over all parameters
-        """
+        """return an iterator over all parameters"""
         if nodes:
             yield self
         for p in self.parameters.values():
@@ -738,29 +835,37 @@ class CLI(object):
 
 
 class Parameters(ParameterGroup):
-    def __init__(self, name=None, version=None, from_file=None, from_node=None, **kwargs):
+    def __init__(
+        self, name=None, version=None, from_file=None, from_node=None, **kwargs
+    ):
         self.name = None
         self.version = None
         self.description = None
-        self.opt_attribs = dict()  # little helper to have similar access as to CTDModel;
+        self.opt_attribs = (
+            dict()
+        )  # little helper to have similar access as to CTDModel;
 
         if from_file is not None or from_node is not None:
             if from_file is not None:
                 root = parse(from_file).getroot()
             else:
                 root = from_node
-            if root.tag != 'PARAMETERS':
+            if root.tag != "PARAMETERS":
                 raise ModelTypeError("Invalid PARAMETERS file root is not <PARAMETERS>")
             # tool_element.attrib['version'] == '1.6.2'  # check whether the schema matches the one CTDOpts uses?
-            params_container_node = root.find('NODE')
+            params_container_node = root.find("NODE")
 
             one = root.find('./NODE/NODE[@name="1"]')
             version = root.find('./NODE/ITEM[@name="version"]')
 
             if one is not None and version is not None:
-                super(Parameters, self).__init__(name=None, parent=None, node=one, description=None)
+                super(Parameters, self).__init__(
+                    name=None, parent=None, node=one, description=None
+                )
             else:
-                super(Parameters, self).__init__(name=None, parent=None, node=params_container_node, description=None)
+                super(Parameters, self).__init__(
+                    name=None, parent=None, node=params_container_node, description=None
+                )
             self.description = params_container_node.attrib.get("description", "")
             self.name = params_container_node.attrib.get("name", "")
             if version is not None:
@@ -768,22 +873,49 @@ class Parameters(ParameterGroup):
         else:
             self.name = name
             self.version = version
-            super(Parameters, self).__init__(name=name, parent=None, node=None, description=kwargs.get("description", ""))
+            super(Parameters, self).__init__(
+                name=name,
+                parent=None,
+                node=None,
+                description=kwargs.get("description", ""),
+            )
 
-        self.opt_attribs['description'] = self.description
+        self.opt_attribs["description"] = self.description
 
     def _xml_node(self, arg_dict):
-        params = Element('PARAMETERS', {
-            'version': "1.7.0",
-            'xmlns:xsi': "http://www.w3.org/2001/XMLSchema-instance",
-            'xsi:noNamespaceSchemaLocation': "https://github.com/genericworkflownodes/CTDopts/raw/master/schemas/Param_1_7_0.xsd"
-        })
-        node = Element("NODE", {"name": self.name, 'description': self.description})
+        params = Element(
+            "PARAMETERS",
+            {
+                "version": "1.7.0",
+                "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
+                "xsi:noNamespaceSchemaLocation": "https://github.com/genericworkflownodes/CTDopts/raw/master/schemas/Param_1_7_0.xsd",
+            },
+        )
+        node = Element("NODE", {"name": self.name, "description": self.description})
         params.append(node)
 
         if self.version is not None:
-            node.append(Element("ITEM", {"name": "version", 'value': self.version, 'type': "string", 'description': "Version of the tool that generated this parameters file.", "required": "false", "advanced": "true"}))
-        one_node = Element("NODE", {"name": "1", 'description': "Instance &apos;1&apos; section for &apos;%s&apos;" % self.name})
+            node.append(
+                Element(
+                    "ITEM",
+                    {
+                        "name": "version",
+                        "value": self.version,
+                        "type": "string",
+                        "description": "Version of the tool that generated this parameters file.",
+                        "required": "false",
+                        "advanced": "true",
+                    },
+                )
+            )
+        one_node = Element(
+            "NODE",
+            {
+                "name": "1",
+                "description": "Instance &apos;1&apos; section for &apos;%s&apos;"
+                % self.name,
+            },
+        )
         node.append(one_node)
 
         for arg in self.parameters.values():
@@ -800,12 +932,18 @@ class Parameters(ParameterGroup):
         return []
 
     def get_parameters(self, nodes=False):
-        """return an iterator over all parameters
-        """
+        """return an iterator over all parameters"""
         for p in self.parameters.values():
             yield from p.get_parameters(nodes)
 
-    def parse_cl_args(self, cl_args=None, prefix='--', short_prefix="-", get_remaining=False, ignore_required=False):
+    def parse_cl_args(
+        self,
+        cl_args=None,
+        prefix="--",
+        short_prefix="-",
+        get_remaining=False,
+        ignore_required=False,
+    ):
         """Parses command line arguments `cl_args` (either a string or a list like sys.argv[1:])
         assuming that parameter names are prefixed by `prefix` (default '--').
 
@@ -824,6 +962,7 @@ class Parameters(ParameterGroup):
             (contrary to the default behaviour of the store action)
             see also https://github.com/OpenMS/OpenMS/issues/4545
             """
+
             def __init__(self, option_strings, dest, nargs=None, **kwargs):
                 self._seen_args = set()
                 super(StoreFirst, self).__init__(option_strings, dest, nargs, **kwargs)
@@ -842,37 +981,47 @@ class Parameters(ParameterGroup):
         for param in self.get_parameters():
             lineage = param.get_lineage(name_only=True)
             short_lineage = param.get_lineage(name_only=True, short_name=True)
-            cli_param = prefix + ':'.join(lineage)
-            cli_short_param = short_prefix + ':'.join(short_lineage)
+            cli_param = prefix + ":".join(lineage)
+            cli_short_param = short_prefix + ":".join(short_lineage)
             idx = -1
             if cli_param in cl_arg_list:
                 idx = cl_arg_list.index(cli_param)
             elif cli_short_param in cl_arg_list:
                 idx = cl_arg_list.index(cli_short_param)
 
-            cl_arg_kws = {}  # argument processing info passed to argparse in keyword arguments, we build them here
-            if idx >= 0 and idx + 1 < len(cl_arg_list) and cl_arg_list[idx + 1] in ['true', 'false']:
-                cl_arg_kws['type'] = str
-                cl_arg_kws['action'] = StoreFirst
-            elif param.type is bool or (param.type is str and type(param.restrictions) is _Choices and set(param.restrictions.choices) == set(["true", "false"])):  # boolean flags are not followed by a value, only their presence is required
-                cl_arg_kws['action'] = 'store_true'
+            cl_arg_kws = (
+                {}
+            )  # argument processing info passed to argparse in keyword arguments, we build them here
+            if (
+                idx >= 0
+                and idx + 1 < len(cl_arg_list)
+                and cl_arg_list[idx + 1] in ["true", "false"]
+            ):
+                cl_arg_kws["type"] = str
+                cl_arg_kws["action"] = StoreFirst
+            elif param.type is bool or (
+                param.type is str
+                and type(param.restrictions) is _Choices
+                and set(param.restrictions.choices) == set(["true", "false"])
+            ):  # boolean flags are not followed by a value, only their presence is required
+                cl_arg_kws["action"] = "store_true"
             else:
                 # we take every argument as string and cast them only later in validate_args() if
                 # explicitly asked for. This is because we don't want to deal with type exceptions
                 # at this stage, and prefer the multi-leveled strictness settings in validate_args()
-                cl_arg_kws['type'] = str
-                cl_arg_kws['action'] = StoreFirst
+                cl_arg_kws["type"] = str
+                cl_arg_kws["action"] = StoreFirst
 
             if param.is_list:
                 # or '+' rather? Should we allow empty lists here? If default is a proper list with elements
                 # that we want to clear, this would be the only way to do it so I'm inclined to use '*'
-                cl_arg_kws['nargs'] = '*'
+                cl_arg_kws["nargs"] = "*"
 
             if type(param.default) is not _Null():
-                cl_arg_kws['default'] = param.default
+                cl_arg_kws["default"] = param.default
 
             if param.required and not ignore_required:
-                cl_arg_kws['required'] = True
+                cl_arg_kws["required"] = True
 
             # hardcoded 'group:subgroup:param'
             if all(type(a) is not _Null for a in short_lineage):
@@ -885,8 +1034,11 @@ class Parameters(ParameterGroup):
         for param_name, value in vars(parsed_args).items():
             # None values are created by argparse if it didn't find the argument or default=None, we skip params
             # that dont have a default value
-            if value is not None or value == self.parameters.parameters[param_name].default:
-                set_nested_key(res_args, param_name.split(':'), value)
+            if (
+                value is not None
+                or value == self.parameters.parameters[param_name].default
+            ):
+                set_nested_key(res_args, param_name.split(":"), value)
         return res_args if not get_remaining else (res_args, rest)
 
     def generate_ctd_tree(self, arg_dict=None, *args):
@@ -938,65 +1090,92 @@ class CTDModel(object):
             self.name = name
             self.version = version
             # TODO: check whether optional attributes in kwargs are all allowed or just ignore the rest?
-            self.opt_attribs = kwargs  # description, manual, docurl, category (+executable stuff).
+            self.opt_attribs = (
+                kwargs  # description, manual, docurl, category (+executable stuff).
+            )
             self.parameters = Parameters(name=self.name, version=version, **kwargs)
             self.cli = []
 
     def _load_from_file(self, filename):
-        """Builds a CTDModel from a CTD XML file.
-        """
+        """Builds a CTDModel from a CTD XML file."""
         root = parse(filename).getroot()
-        if root.tag != 'tool':
+        if root.tag != "tool":
             raise ModelTypeError("Invalid CTD file, root is not <tool>")
 
         self.opt_attribs = {}
         self.cli = []
 
-        for tool_required_attrib in ['name', 'version']:
-            assert tool_required_attrib in root.attrib, "CTD tool is missing a %s attribute" % tool_required_attrib
+        for tool_required_attrib in ["name", "version"]:
+            assert tool_required_attrib in root.attrib, (
+                "CTD tool is missing a %s attribute" % tool_required_attrib
+            )
             setattr(self, tool_required_attrib, root.attrib[tool_required_attrib])
 
-        for tool_opt_attrib in ['docurl', 'category']:
+        for tool_opt_attrib in ["docurl", "category"]:
             if tool_opt_attrib in root.attrib:
                 self.opt_attribs[tool_opt_attrib] = root.attrib[tool_opt_attrib]
 
         for tool_element in root:
             # ignoring: cli, logs, relocators. cli and relocators might be useful later.
-            if tool_element.tag in ['manual', 'description', 'executableName', 'executablePath']:
+            if tool_element.tag in [
+                "manual",
+                "description",
+                "executableName",
+                "executablePath",
+            ]:
                 self.opt_attribs[tool_element.tag] = tool_element.text
 
-            if tool_element.tag == 'cli':
-                self._build_cli(tool_element.findall('clielement'))
+            if tool_element.tag == "cli":
+                self._build_cli(tool_element.findall("clielement"))
 
-            if tool_element.tag == 'PARAMETERS':
+            if tool_element.tag == "PARAMETERS":
                 self.parameters = Parameters(from_node=tool_element)
 
     def _build_cli(self, xml_cli_elements):
         for xml_cli_element in xml_cli_elements:
             mappings = []
-            for xml_mapping in xml_cli_element.findall('mapping'):
-                mappings.append(Mapping(xml_mapping.attrib['referenceName'] if 'referenceName' in xml_mapping.attrib else None))
-            self.cli.append(CLIElement(xml_cli_element.attrib['optionIdentifier'] if 'optionIdentifier' in xml_cli_element.attrib else None, mappings))
+            for xml_mapping in xml_cli_element.findall("mapping"):
+                mappings.append(
+                    Mapping(
+                        xml_mapping.attrib["referenceName"]
+                        if "referenceName" in xml_mapping.attrib
+                        else None
+                    )
+                )
+            self.cli.append(
+                CLIElement(
+                    xml_cli_element.attrib["optionIdentifier"]
+                    if "optionIdentifier" in xml_cli_element.attrib
+                    else None,
+                    mappings,
+                )
+            )
 
     def _build_param_model(self, element, base):
-        if element.tag == 'NODE':
-            validate_contains_keys(element.attrib, ['name'], 'NODE')
-            if base is None:  # top level group (<NODE name="1">) has to be created on its own
-                current_group = ParameterGroup(element.attrib['name'], base, element.attrib.get('description', ''))
+        if element.tag == "NODE":
+            validate_contains_keys(element.attrib, ["name"], "NODE")
+            if (
+                base is None
+            ):  # top level group (<NODE name="1">) has to be created on its own
+                current_group = ParameterGroup(
+                    element.attrib["name"], base, element.attrib.get("description", "")
+                )
             else:  # other groups can be registered as a subgroup, as they'll always have parent base nodes
-                current_group = base.add_group(element.attrib['name'], element.attrib.get('description', ''))
+                current_group = base.add_group(
+                    element.attrib["name"], element.attrib.get("description", "")
+                )
             for child in element:
                 self._build_param_model(child, current_group)
             return current_group
-        elif element.tag == 'ITEM':
+        elif element.tag == "ITEM":
             setup = _translate_ctd_to_param(dict(element.attrib))
-            validate_contains_keys(setup, ['name'], 'ITEM')
+            validate_contains_keys(setup, ["name"], "ITEM")
             base.add(**setup)  # register parameter in model
-        elif element.tag == 'ITEMLIST':
+        elif element.tag == "ITEMLIST":
             setup = _translate_ctd_to_param(dict(element.attrib))
-            setup['default'] = [listitem.attrib['value'] for listitem in element]
-            setup['is_list'] = True
-            validate_contains_keys(setup, ['name'], 'ITEMLIST')
+            setup["default"] = [listitem.attrib["value"] for listitem in element]
+            setup["is_list"] = True
+            validate_contains_keys(setup, ["name"], "ITEMLIST")
             base.add(**setup)  # register list parameter in model
 
     def add(self, name, **kwargs):
@@ -1018,26 +1197,27 @@ class CTDModel(object):
         return self.parameters.add(name, **kwargs)
 
     def add_group(self, name, description=None):
-        """Registers a top level parameter group to the model. Required: `name` string. Optional: `description`
-        """
+        """Registers a top level parameter group to the model. Required: `name` string. Optional: `description`"""
         return self.parameters.add_group(name, description)
 
     def list_parameters(self):
-        """Returns a list of all Parameter objects registered in the model.
-        """
+        """Returns a list of all Parameter objects registered in the model."""
         # root node will list all its children (recursively, if they are nested in ParameterGroups)
         return self.parameters._get_children()
 
     def get_defaults(self):
-        """Returns a nested dictionary with all parameters of the model having default values.
-        """
-        params_w_default = (p for p in self.list_parameters() if type(p.default) is not _Null)
+        """Returns a nested dictionary with all parameters of the model having default values."""
+        params_w_default = (
+            p for p in self.list_parameters() if type(p.default) is not _Null
+        )
         defaults = {}
         for param in params_w_default:
             set_nested_key(defaults, param.get_lineage(name_only=True), param.default)
         return defaults
 
-    def validate_args(self, args_dict, enforce_required=0, enforce_type=0, enforce_restrictions=0):
+    def validate_args(
+        self, args_dict, enforce_required=0, enforce_type=0, enforce_restrictions=0
+    ):
         """Validates an argument dictionary against the model, and returns a type-casted argument
         dictionary with defaults for missing arguments. Valid values for `enforce_required`,
         `enforce_type` and `enforce_restrictions` are 0, 1 and 2, where the different levels are:
@@ -1056,42 +1236,72 @@ class CTDModel(object):
                 # boolean values are the only ones that don't get casted correctly with, say, bool('false')
                 typecast = param.type if param.type is not bool else CAST_BOOLEAN
                 try:
-                    validated_value = list(map(typecast, arg)) if param.is_list else typecast(arg)
+                    validated_value = (
+                        list(map(typecast, arg)) if param.is_list else typecast(arg)
+                    )
                 except ValueError:  # type casting failed
-                    validated_value = arg  # just keep it as a string (or list of strings)
-                    if enforce_type:  # but raise a warning or exception depending on enforcement level
+                    validated_value = (
+                        arg  # just keep it as a string (or list of strings)
+                    )
+                    if (
+                        enforce_type
+                    ):  # but raise a warning or exception depending on enforcement level
                         if enforce_type == 1:
-                            warnings.warn('Argument %s is of wrong type. Expected %s, got: %s' %
-                                          (':'.join(lineage), TYPE_TO_CTDTYPE[param.type], arg))
+                            warnings.warn(
+                                "Argument %s is of wrong type. Expected %s, got: %s"
+                                % (":".join(lineage), TYPE_TO_CTDTYPE[param.type], arg)
+                            )
                         else:
                             raise ArgumentTypeError(param, arg)
 
-                if enforce_restrictions and param.restrictions and not param.restrictions.check(validated_value):
+                if (
+                    enforce_restrictions
+                    and param.restrictions
+                    and not param.restrictions.check(validated_value)
+                ):
                     if enforce_restrictions == 1:
-                        warnings.warn('Argument restrictions for %s violated. Restriction: %s. Value: %s' %
-                                      (':'.join(lineage), param.restrictions.ctd_restriction_string(), validated_value))
+                        warnings.warn(
+                            "Argument restrictions for %s violated. Restriction: %s. Value: %s"
+                            % (
+                                ":".join(lineage),
+                                param.restrictions.ctd_restriction_string(),
+                                validated_value,
+                            )
+                        )
                     else:
                         raise ArgumentRestrictionError(param, validated_value)
 
                 set_nested_key(validated_args, lineage, validated_value)
-            except KeyError:  # argument was not found, checking whether required and using defaults if not
+            except (
+                KeyError
+            ):  # argument was not found, checking whether required and using defaults if not
                 if param.required:
                     if not enforce_required:
                         continue  # this argument will be missing from the dict as required fields have no default value
                     elif enforce_required == 1:
-                        warnings.warn('Required argument %s missing' % ':'.join(lineage), UserWarning)
+                        warnings.warn(
+                            "Required argument %s missing" % ":".join(lineage),
+                            UserWarning,
+                        )
                     else:
                         raise ArgumentMissingError(param)
                 else:
                     set_nested_key(validated_args, lineage, param.default)
         return validated_args
 
-    def parse_cl_args(self, cl_args=None, prefix='--', short_prefix="-",
-                      get_remaining=False, ignore_required=False):
-        return self.parameters.parse_cl_args(cl_args, prefix, short_prefix,
-                                             get_remaining, ignore_required)
+    def parse_cl_args(
+        self,
+        cl_args=None,
+        prefix="--",
+        short_prefix="-",
+        get_remaining=False,
+        ignore_required=False,
+    ):
+        return self.parameters.parse_cl_args(
+            cl_args, prefix, short_prefix, get_remaining, ignore_required
+        )
 
-    def generate_ctd_tree(self, arg_dict=None, log=None, cli=False, prefix='--'):
+    def generate_ctd_tree(self, arg_dict=None, log=None, cli=False, prefix="--"):
         """Generates an XML ElementTree from the model and returns the top <tool> Element object,
         that can be output to a file (CTDModel.write_ctd() does everything needed if the user
         doesn't need access to the actual element-tree).
@@ -1108,19 +1318,21 @@ class CTDModel(object):
         `cli`: boolean whether or not cli elements should be generated (needed for GenericKNIMENode for example)
         """
         tool_attribs = collections.OrderedDict()
-        tool_attribs['version'] = self.version
-        tool_attribs['name'] = self.name
-        tool_attribs['xmlns:xsi'] = "http://www.w3.org/2001/XMLSchema-instance"
-        tool_attribs['xsi:schemaLocation'] = "https://github.com/genericworkflownodes/CTDopts/raw/master/schemas/CTD_0_3.xsd"
+        tool_attribs["version"] = self.version
+        tool_attribs["name"] = self.name
+        tool_attribs["xmlns:xsi"] = "http://www.w3.org/2001/XMLSchema-instance"
+        tool_attribs[
+            "xsi:schemaLocation"
+        ] = "https://github.com/genericworkflownodes/CTDopts/raw/master/schemas/CTD_0_3.xsd"
 
-        opt_attribs = ['docurl', 'category']
+        opt_attribs = ["docurl", "category"]
         for oo in opt_attribs:
             if oo in self.opt_attribs:
                 tool_attribs[oo] = self.opt_attribs[oo]
 
-        tool = Element('tool', tool_attribs)  # CTD root
+        tool = Element("tool", tool_attribs)  # CTD root
 
-        opt_elements = ['manual', 'description', 'executableName', 'executablePath']
+        opt_elements = ["manual", "description", "executableName", "executablePath"]
 
         for oo in opt_elements:
             if oo in self.opt_attribs:
@@ -1130,19 +1342,21 @@ class CTDModel(object):
             # log is supposed to be a dictionary, with the following keys (none of them being required):
             # time_start, time_finish, status, output, warning, error
             # generate
-            log_node = SubElement(tool, 'log')
-            if 'time_start' in log:  # expect proper XML date string like datetime.datetime.now(pytz.utc).isoformat()
-                log_node.attrib['executionTimeStart'] = log['time_start']
-            if 'time_finish' in log:
-                log_node.attrib['executionTimeStop'] = log['time_finish']
-            if 'status' in log:
-                log_node.attrib['executionStatus'] = log['status']
-            if 'output' in log:
-                SubElement(log_node, 'executionMessage').text = log['output']
-            if 'warning' in log:
-                SubElement(log_node, 'executionWarning').text = log['warning']
-            if 'error' in log:
-                SubElement(log_node, 'executionError').text = log['error']
+            log_node = SubElement(tool, "log")
+            if (
+                "time_start" in log
+            ):  # expect proper XML date string like datetime.datetime.now(pytz.utc).isoformat()
+                log_node.attrib["executionTimeStart"] = log["time_start"]
+            if "time_finish" in log:
+                log_node.attrib["executionTimeStop"] = log["time_finish"]
+            if "status" in log:
+                log_node.attrib["executionStatus"] = log["status"]
+            if "output" in log:
+                SubElement(log_node, "executionMessage").text = log["output"]
+            if "warning" in log:
+                SubElement(log_node, "executionWarning").text = log["warning"]
+            if "error" in log:
+                SubElement(log_node, "executionError").text = log["error"]
 
         # all the above was boilerplate, now comes the actual parameter tree generation
         tool.append(self.parameters._xml_node(arg_dict))
@@ -1159,8 +1373,7 @@ class CTDModel(object):
         return tool
 
     def get_parameters(self, nodes=False):
-        """return an iterator over all parameters
-        """
+        """return an iterator over all parameters"""
         yield from self.parameters.get_parameters(nodes)
 
     def write_ctd(self, out_file, arg_dict=None, log=None, cli=False):
@@ -1183,10 +1396,14 @@ class CTDModel(object):
 
 
 def write_ctd(model, out_file, arg_dict=None, log=None, cli=False):
-    xml_content = parseString(tostring(model.generate_ctd_tree(arg_dict, log, cli), encoding="UTF-8")).toprettyxml(indent="  ")
+    xml_content = parseString(
+        tostring(model.generate_ctd_tree(arg_dict, log, cli), encoding="UTF-8")
+    ).toprettyxml(indent="  ")
 
-    if isinstance(out_file, str):  # if out_file is a string, we create and write the file
-        with open(out_file, 'w') as f:
+    if isinstance(
+        out_file, str
+    ):  # if out_file is a string, we create and write the file
+        with open(out_file, "w") as f:
             f.write(xml_content)
     else:  # otherwise we assume it's a writable stream and write into that.
         out_file.write(xml_content)
@@ -1204,37 +1421,45 @@ def args_from_file(filename):
     one shouldn't build a model from an argument storing CTD (as opposed to tool describing CTDs)
     there's no technical obstacle to do so.
     """
+
     def get_args(element, base=None):
         # recursive argument lookup if encountering <NODE>s
-        if element.tag == 'NODE':
+        if element.tag == "NODE":
             current_group = {}  # OrderedDict()
             for child in element:
                 get_args(child, current_group)
 
             if base is not None:
-                base[element.attrib['name']] = current_group
+                base[element.attrib["name"]] = current_group
             else:
                 # top level <NODE name='1'> is the only one called with base=None.
                 # As the argument parsing is recursive, whenever the top node finishes, we are done
                 # with the parsing and have to return the results.
                 return current_group
-        elif element.tag == 'ITEM':
-            if 'value' in element.attrib:
-                base[element.attrib['name']] = element.attrib['value']
-        elif element.tag == 'ITEMLIST':
+        elif element.tag == "ITEM":
+            if "value" in element.attrib:
+                base[element.attrib["name"]] = element.attrib["value"]
+        elif element.tag == "ITEMLIST":
             items = list(element)
             if items:
-                base[element.attrib['name']] = [listitem.attrib['value'] for listitem in items]
+                base[element.attrib["name"]] = [
+                    listitem.attrib["value"] for listitem in items
+                ]
 
     root = parse(filename).getroot()
-    param_root = root if root.tag == 'PARAMETERS' else root.find('PARAMETERS')
-    parameters = param_root.find('NODE').find('NODE')
+    param_root = root if root.tag == "PARAMETERS" else root.find("PARAMETERS")
+    parameters = param_root.find("NODE").find("NODE")
     return get_args(parameters, base=None)
 
 
-def parse_cl_directives(cl_args, write_tool_ctd='write_tool_ctd', write_param_ctd='write_param_ctd',
-                        input_ctd='input_ctd', prefix='--'):
-    '''Parses command line CTD processing directives. `write_tool_ctd`, `write_param_ctd` and `input_ctd`
+def parse_cl_directives(
+    cl_args,
+    write_tool_ctd="write_tool_ctd",
+    write_param_ctd="write_param_ctd",
+    input_ctd="input_ctd",
+    prefix="--",
+):
+    """Parses command line CTD processing directives. `write_tool_ctd`, `write_param_ctd` and `input_ctd`
     string are customizable, and will be parsed for in command line. `prefix` should be one or two dashes,
     default is '--'.
 
@@ -1242,7 +1467,8 @@ def parse_cl_directives(cl_args, write_tool_ctd='write_tool_ctd', write_param_ct
         'write_tool_ctd': if flag set, either True or the filename provided in command line. Otherwise None.
         'write_param_ctd': if flag set, either True or the filename provided in command line. Otherwise None.
         'input_ctd': filename if found, otherwise None
-    '''
+    """
+
     def transform(x):
         if x is None:
             return None
@@ -1252,18 +1478,20 @@ def parse_cl_directives(cl_args, write_tool_ctd='write_tool_ctd', write_param_ct
             return x[0]
 
     parser = argparse.ArgumentParser()
-    parser.add_argument(prefix + write_tool_ctd, nargs='*')
-    parser.add_argument(prefix + write_param_ctd, nargs='*')
+    parser.add_argument(prefix + write_tool_ctd, nargs="*")
+    parser.add_argument(prefix + write_param_ctd, nargs="*")
     parser.add_argument(prefix + input_ctd, type=str)
 
-    cl_arg_list = cl_args.split() if isinstance(cl_args, str) else cl_args  # string or list of args
+    cl_arg_list = (
+        cl_args.split() if isinstance(cl_args, str) else cl_args
+    )  # string or list of args
     directives, rest = parser.parse_known_args(cl_arg_list)
     directives = vars(directives)
 
     parsed_directives = {}
-    parsed_directives['write_tool_ctd'] = transform(directives[write_tool_ctd])
-    parsed_directives['write_param_ctd'] = transform(directives[write_param_ctd])
-    parsed_directives['input_ctd'] = directives[input_ctd]
+    parsed_directives["write_tool_ctd"] = transform(directives[write_tool_ctd])
+    parsed_directives["write_param_ctd"] = transform(directives[write_param_ctd])
+    parsed_directives["input_ctd"] = directives[input_ctd]
 
     return parsed_directives
 
@@ -1271,6 +1499,10 @@ def parse_cl_directives(cl_args, write_tool_ctd='write_tool_ctd', write_param_ct
 # TODO: ElementTree does not provide line information... maybe refactor using lxml or other parser that does support it?
 def validate_contains_keys(dictionary, keys, element_tag):
     for key in keys:
-        assert key in dictionary, "Missing required attribute '%s' in %s element. Present attributes: %s" % \
-                                  (key, element_tag,
-                                   ', '.join(['{0}="{1}"'.format(k, v) for k, v in dictionary.items()]))
+        assert (
+            key in dictionary
+        ), "Missing required attribute '%s' in %s element. Present attributes: %s" % (
+            key,
+            element_tag,
+            ", ".join(['{0}="{1}"'.format(k, v) for k, v in dictionary.items()]),
+        )
