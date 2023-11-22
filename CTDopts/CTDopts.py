@@ -4,6 +4,7 @@ import collections
 import collections.abc
 from xml.etree.ElementTree import Element, SubElement, tostring, parse
 from xml.dom.minidom import parseString
+import urllib2
 import warnings
 
 # dummy classes for input-file and output-file CTD types.
@@ -576,6 +577,8 @@ class Parameter(object):
                 else:
                     defaults_to_validate.append(default)
                 for default_to_validate in defaults_to_validate:
+                    if default_to_validate == '':
+                        continue
                     try:
                         if self.type is int:
                             int(default_to_validate)
@@ -1114,6 +1117,15 @@ class CTDModel(object):
         for tool_opt_attrib in ["docurl", "category"]:
             if tool_opt_attrib in root.attrib:
                 self.opt_attribs[tool_opt_attrib] = root.attrib[tool_opt_attrib]
+        # check if the URL actually exists (wrong URLs cause errors in Galaxy tests)
+        if self.opt_attribs.has_key('docurl'):
+            while self.opt_attribs['docurl'] != '':
+                try:
+                    urllib2.urlopen(self.opt_attribs['docurl'])
+                    break
+                except (urllib2.HTTPError, urllib2.URLError):
+                    self.opt_attribs['docurl'] = '/'.join(self.opt_attribs['docurl'].split('/')[:-1])
+
 
         for tool_element in root:
             # ignoring: cli, logs, relocators. cli and relocators might be useful later.
