@@ -24,7 +24,7 @@ jobs:
     - name: Flake8
       run: flake8 --ignore=C901,W503,E501
     - name: Black
-      uses: psf/black@23.3.0
+      uses: psf/black@26.3.0
 
   test:
     runs-on: ubuntu-latest
